@@ -224,4 +224,61 @@ class EventCancellation(TimestampedModel):
     def __str__(self):
         return f"{self.event} cancelled on {self.occurrence_date}"
 
+
+class WorkItemStatus(models.TextChoices):
+    NEW = "new", "New"
+    REVIEWING = "reviewing", "Reviewing"
+    PLANNED = "planned", "Planned"
+    IN_PROGRESS = "in_progress", "In progress"
+    RESOLVED = "resolved", "Resolved"
+    CLOSED = "closed", "Closed"
+
+
+class BugSeverity(models.TextChoices):
+    LOW = "low", "Low"
+    MEDIUM = "medium", "Medium"
+    HIGH = "high", "High"
+    CRITICAL = "critical", "Critical"
+
+
+class FeatureImpact(models.TextChoices):
+    NICE_TO_HAVE = "nice_to_have", "Nice to have"
+    USEFUL = "useful", "Useful"
+    IMPORTANT = "important", "Important"
+    ESSENTIAL = "essential", "Essential"
+
+
+class BugReport(TimestampedModel):
+    title = models.CharField(max_length=180)
+    description = models.TextField()
+    steps_to_reproduce = models.TextField(blank=True)
+    expected_behavior = models.TextField(blank=True)
+    actual_behavior = models.TextField(blank=True)
+    page_url = models.URLField(blank=True)
+    severity = models.CharField(max_length=20, choices=BugSeverity.choices, default=BugSeverity.MEDIUM)
+    status = models.CharField(max_length=20, choices=WorkItemStatus.choices, default=WorkItemStatus.NEW)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="bug_reports")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class FeatureRequest(TimestampedModel):
+    title = models.CharField(max_length=180)
+    description = models.TextField()
+    use_case = models.TextField(blank=True)
+    benefit = models.TextField(blank=True)
+    impact = models.CharField(max_length=20, choices=FeatureImpact.choices, default=FeatureImpact.USEFUL)
+    status = models.CharField(max_length=20, choices=WorkItemStatus.choices, default=WorkItemStatus.NEW)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="feature_requests")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
 # Create your models here.

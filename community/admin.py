@@ -1,6 +1,17 @@
 from django.contrib import admin
 
-from .models import Artifact, ContactMessage, Event, EventCancellation, MemberProfile, Message, MessageThread, Post
+from .models import (
+    Artifact,
+    BugReport,
+    ContactMessage,
+    Event,
+    EventCancellation,
+    FeatureRequest,
+    MemberProfile,
+    Message,
+    MessageThread,
+    Post,
+)
 
 
 @admin.register(MemberProfile)
@@ -58,5 +69,19 @@ class EventCancellationAdmin(admin.ModelAdmin):
     list_display = ("event", "occurrence_date", "cancelled_by", "created_at")
     list_filter = ("occurrence_date", "created_at")
     search_fields = ("event__title", "cancelled_by__username")
+
+
+@admin.register(BugReport)
+class BugReportAdmin(admin.ModelAdmin):
+    list_display = ("title", "severity", "status", "submitted_by", "created_at")
+    list_filter = ("severity", "status", "created_at")
+    search_fields = ("title", "description", "submitted_by__username")
+
+
+@admin.register(FeatureRequest)
+class FeatureRequestAdmin(admin.ModelAdmin):
+    list_display = ("title", "impact", "status", "submitted_by", "created_at")
+    list_filter = ("impact", "status", "created_at")
+    search_fields = ("title", "description", "submitted_by__username")
 
 # Register your models here.

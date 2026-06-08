@@ -43,7 +43,13 @@ _LOCAL_CONFIG = _load_local_config()
 
 
 def _config_value(name, default=""):
-    return os.environ.get(name, _LOCAL_CONFIG.get(name, default))
+    value = os.environ.get(name)
+    if value not in (None, ""):
+        return value
+    value = _LOCAL_CONFIG.get(name)
+    if value not in (None, ""):
+        return value
+    return default
 
 
 def _config_bool(name, default=False):

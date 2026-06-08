@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.urls import reverse
 from datetime import date, time
 
-from .models import ContactMessage, Event, EventCancellation, MessageThread, Post, Visibility
+from .models import BugReport, ContactMessage, Event, EventCancellation, FeatureRequest, MessageThread, Post, Visibility
 
 
 class VisibilityTests(TestCase):
@@ -279,6 +279,93 @@ class EventTests(TestCase):
         response = self.client.post(reverse("delete_event", kwargs={"event_id": event.pk}))
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Event.objects.filter(pk=event.pk).exists())
+
+
+class WorkItemTests(TestCase):
+    def setUp(self):
+        self.member = User.objects.create_user(username="member", password="testpass")
+
+    def test_bug_report_list_requires_login(self):
+        response = self.client.get(reverse("bug_report_list"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_feature_request_list_requires_login(self):
+        response = self.client.get(reverse("feature_request_list"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_member_can_create_bug_report(self):
+        self.client.login(username="member", password="testpass")
+        response = self.client.post(
+            reverse("bug_report_create"),
+            {
+                "title": "Calendar display problem",
+                "description": "The calendar layout is unclear.",
+                "steps_to_reproduce": "Open the calendar.",
+                "expected_behavior": "Readable calendar.",
+                "actual_behavior": "Crowded calendar.",
+                "page_url": "https://radiantensemble.com/calendar/",
+                "severity": "medium",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        report = BugReport.objects.get(title="Calendar display problem")
+        self.assertEqual(report.submitted_by, self.member)
+
+    def test_member_can_view_bug_report_detail(self):
+        report = BugReport.objects.create(
+            submitted_by=self.member,
+            title="Broken link",
+            description="A link does not work.",
+        )
+        self.client.login(username="member", password="testpass")
+        response = self.client.get(reverse("bug_report_detail", kwargs={"report_id": report.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Broken link")
+
+    def test_anonymous_cannot_view_bug_report_detail(self):
+        report = BugReport.objects.create(
+            submitted_by=self.member,
+            title="Hidden bug",
+            description="Members only.",
+        )
+        response = self.client.get(reverse("bug_report_detail", kwargs={"report_id": report.pk}))
+        self.assertEqual(response.status_code, 302)
+
+    def test_member_can_create_feature_request(self):
+        self.client.login(username="member", password="testpass")
+        response = self.client.post(
+            reverse("feature_request_create"),
+            {
+                "title": "Add rehearsal reminders",
+                "description": "Members should receive reminders.",
+                "use_case": "Before a rehearsal.",
+                "benefit": "Better attendance.",
+                "impact": "important",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        feature = FeatureRequest.objects.get(title="Add rehearsal reminders")
+        self.assertEqual(feature.submitted_by, self.member)
+
+    def test_member_can_view_feature_request_detail(self):
+        feature = FeatureRequest.objects.create(
+            submitted_by=self.member,
+            title="Better artifact search",
+            description="Search tags and titles.",
+        )
+        self.client.login(username="member", password="testpass")
+        response = self.client.get(reverse("feature_request_detail", kwargs={"request_id": feature.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Better artifact search")
+
+    def test_anonymous_cannot_view_feature_request_detail(self):
+        feature = FeatureRequest.objects.create(
+            submitted_by=self.member,
+            title="Hidden feature",
+            description="Members only.",
+        )
+        response = self.client.get(reverse("feature_request_detail", kwargs={"request_id": feature.pk}))
+        self.assertEqual(response.status_code, 302)
 
     def test_staff_can_delete_someone_elses_event(self):
         staff = User.objects.create_user(username="staff-delete-event", password="testpass", is_staff=True)

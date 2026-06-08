@@ -150,3 +150,13 @@
 - For one-time events, deleting the single occurrence deletes the event record.
 - Calendar, event detail, and upcoming-events expansion now respect cancelled occurrences.
 - Added tests for creator/staff occurrence deletion, non-creator denial, one-time event deletion through the occurrence path, and hiding cancelled dates from the calendar.
+
+## 2026-06-08 Bug Reports And Feature Requests
+
+- Added `BugReport` model with title, description, steps to reproduce, expected behavior, actual behavior, page URL, severity, status, submitter, and timestamps.
+- Added `FeatureRequest` model with title, description, use case, benefit, impact, status, submitter, and timestamps.
+- Added Django admin registrations for both models so staff can triage status/severity/impact.
+- Added member-only pages for bug report list, create, and detail.
+- Added member-only pages for feature request list, create, and detail.
+- Added authenticated navigation links for Bugs and Features.
+- Added tests confirming anonymous users cannot access lists/details, members can submit both types, and details render only for authenticated members.

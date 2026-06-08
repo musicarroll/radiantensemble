@@ -1,0 +1,34 @@
+{% extends "community/base.html" %}
+
+{% block title %}{{ feature.title }} | Feature Request{% endblock %}
+
+{% block content %}
+  <section class="work-item-detail">
+    <p class="eyebrow">Feature Request</p>
+    <h1>{{ feature.title }}</h1>
+    <dl>
+      <div>
+        <dt>Impact</dt>
+        <dd>{{ feature.get_impact_display }}</dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd>{{ feature.get_status_display }}</dd>
+      </div>
+      <div>
+        <dt>Submitted</dt>
+        <dd>{{ feature.created_at|date:"F j, Y g:i A" }}</dd>
+      </div>
+    </dl>
+    <h2>Description</h2>
+    <div>{{ feature.description|urlize|linebreaks }}</div>
+    {% if feature.use_case %}
+      <h2>Use Case</h2>
+      <div>{{ feature.use_case|urlize|linebreaks }}</div>
+    {% endif %}
+    {% if feature.benefit %}
+      <h2>Benefit</h2>
+      <div>{{ feature.benefit|urlize|linebreaks }}</div>
+    {% endif %}
+  </section>
+{% endblock %}

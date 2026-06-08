@@ -115,7 +115,10 @@ select {
 .contact-panel input,
 .event-form-panel textarea,
 .event-form-panel input,
-.event-form-panel select {
+.event-form-panel select,
+.work-item-form-panel textarea,
+.work-item-form-panel input,
+.work-item-form-panel select {
   width: 100%;
   padding: 0.65rem;
   border: 1px solid var(--line);
@@ -213,7 +216,9 @@ select {
 
 .calendar-shell,
 .event-list,
-.event-detail {
+.event-detail,
+.work-item-list,
+.work-item-detail {
   width: min(1120px, calc(100vw - 2rem));
   margin: 2rem auto;
 }
@@ -284,13 +289,16 @@ select {
   text-overflow: ellipsis;
 }
 
-.event-list {
+.event-list,
+.work-item-list {
   display: grid;
   gap: 1rem;
 }
 
 .event-list-item,
-.event-detail {
+.event-detail,
+.work-item-card,
+.work-item-detail {
   padding: 1rem;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -298,8 +306,17 @@ select {
 }
 
 .event-list-item h2,
-.event-detail h1 {
+.event-detail h1,
+.work-item-card h2,
+.work-item-detail h1 {
   margin-top: 0;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .event-detail-header,
@@ -318,18 +335,21 @@ select {
   margin: 0;
 }
 
-.event-detail dl {
+.event-detail dl,
+.work-item-detail dl {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
 }
 
-.event-detail dt {
+.event-detail dt,
+.work-item-detail dt {
   color: var(--muted);
   font-size: 0.85rem;
 }
 
-.event-detail dd {
+.event-detail dd,
+.work-item-detail dd {
   margin: 0.15rem 0 0;
   font-weight: 700;
 }

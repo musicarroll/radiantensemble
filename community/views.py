@@ -12,8 +12,19 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .forms import ContactForm, EventForm
-from .models import Artifact, Event, EventCancellation, MemberProfile, Message, MessageThread, Post, Visibility
+from .forms import BugReportForm, ContactForm, EventForm, FeatureRequestForm
+from .models import (
+    Artifact,
+    BugReport,
+    Event,
+    EventCancellation,
+    FeatureRequest,
+    MemberProfile,
+    Message,
+    MessageThread,
+    Post,
+    Visibility,
+)
 
 
 def home(request):
@@ -251,6 +262,52 @@ def event_detail(request, event_id):
             "can_manage_event": _can_manage_event(request.user, event),
         },
     )
+
+
+@login_required
+def bug_report_list(request):
+    reports = BugReport.objects.select_related("submitted_by").all()
+    return render(request, "community/bug_report_list.html", {"reports": reports})
+
+
+@login_required
+def bug_report_create(request):
+    form = BugReportForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        report = form.save(commit=False)
+        report.submitted_by = request.user
+        report.save()
+        return redirect("bug_report_detail", report_id=report.pk)
+    return render(request, "community/work_item_form.html", {"form": form, "page_title": "Report a Bug"})
+
+
+@login_required
+def bug_report_detail(request, report_id):
+    report = get_object_or_404(BugReport.objects.select_related("submitted_by"), pk=report_id)
+    return render(request, "community/bug_report_detail.html", {"report": report})
+
+
+@login_required
+def feature_request_list(request):
+    requests = FeatureRequest.objects.select_related("submitted_by").all()
+    return render(request, "community/feature_request_list.html", {"requests": requests})
+
+
+@login_required
+def feature_request_create(request):
+    form = FeatureRequestForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        feature = form.save(commit=False)
+        feature.submitted_by = request.user
+        feature.save()
+        return redirect("feature_request_detail", request_id=feature.pk)
+    return render(request, "community/work_item_form.html", {"form": form, "page_title": "Request a Feature"})
+
+
+@login_required
+def feature_request_detail(request, request_id):
+    feature = get_object_or_404(FeatureRequest.objects.select_related("submitted_by"), pk=request_id)
+    return render(request, "community/feature_request_detail.html", {"feature": feature})
 
 
 def member_page(request, slug):

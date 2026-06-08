@@ -1,0 +1,44 @@
+{% extends "community/base.html" %}
+
+{% block title %}{{ report.title }} | Bug Report{% endblock %}
+
+{% block content %}
+  <section class="work-item-detail">
+    <p class="eyebrow">Bug Report</p>
+    <h1>{{ report.title }}</h1>
+    <dl>
+      <div>
+        <dt>Severity</dt>
+        <dd>{{ report.get_severity_display }}</dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd>{{ report.get_status_display }}</dd>
+      </div>
+      <div>
+        <dt>Submitted</dt>
+        <dd>{{ report.created_at|date:"F j, Y g:i A" }}</dd>
+      </div>
+      {% if report.page_url %}
+        <div>
+          <dt>Page URL</dt>
+          <dd><a href="{{ report.page_url }}">{{ report.page_url }}</a></dd>
+        </div>
+      {% endif %}
+    </dl>
+    <h2>Description</h2>
+    <div>{{ report.description|urlize|linebreaks }}</div>
+    {% if report.steps_to_reproduce %}
+      <h2>Steps to Reproduce</h2>
+      <div>{{ report.steps_to_reproduce|urlize|linebreaks }}</div>
+    {% endif %}
+    {% if report.expected_behavior %}
+      <h2>Expected Behavior</h2>
+      <div>{{ report.expected_behavior|urlize|linebreaks }}</div>
+    {% endif %}
+    {% if report.actual_behavior %}
+      <h2>Actual Behavior</h2>
+      <div>{{ report.actual_behavior|urlize|linebreaks }}</div>
+    {% endif %}
+  </section>
+{% endblock %}

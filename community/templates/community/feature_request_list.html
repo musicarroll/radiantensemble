@@ -1,0 +1,23 @@
+{% extends "community/base.html" %}
+
+{% block title %}Feature Requests | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="work-item-list">
+    <div class="list-header">
+      <h1>Feature Requests</h1>
+      <a class="primary-button" href="{% url 'feature_request_create' %}">Request a Feature</a>
+    </div>
+    {% for feature in requests %}
+      <article class="work-item-card">
+        <p class="meta">{{ feature.get_impact_display }} · {{ feature.get_status_display }} · {{ feature.created_at|date:"F j, Y" }}</p>
+        <h2><a href="{% url 'feature_request_detail' feature.id %}">{{ feature.title }}</a></h2>
+        <p>{{ feature.description|truncatewords:32 }}</p>
+      </article>
+    {% empty %}
+      <article class="work-item-card">
+        <p>No feature requests have been submitted yet.</p>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

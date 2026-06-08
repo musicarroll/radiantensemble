@@ -1,0 +1,23 @@
+{% extends "community/base.html" %}
+
+{% block title %}Bug Reports | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="work-item-list">
+    <div class="list-header">
+      <h1>Bug Reports</h1>
+      <a class="primary-button" href="{% url 'bug_report_create' %}">Report a Bug</a>
+    </div>
+    {% for report in reports %}
+      <article class="work-item-card">
+        <p class="meta">{{ report.get_severity_display }} · {{ report.get_status_display }} · {{ report.created_at|date:"F j, Y" }}</p>
+        <h2><a href="{% url 'bug_report_detail' report.id %}">{{ report.title }}</a></h2>
+        <p>{{ report.description|truncatewords:32 }}</p>
+      </article>
+    {% empty %}
+      <article class="work-item-card">
+        <p>No bug reports have been submitted yet.</p>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}
