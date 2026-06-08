@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 import importlib.util
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -33,20 +34,36 @@ def _load_local_config():
         "CF_TURNSTILE_SITE_KEY": getattr(module, "CF_TURNSTILE_SITE_KEY", ""),
         "CF_TURNSTILE_SECRET_KEY": getattr(module, "CF_TURNSTILE_SECRET_KEY", ""),
         "CF_TURNSTILE_ENABLED": getattr(module, "CF_TURNSTILE_ENABLED", True),
+        "DJANGO_DEBUG": getattr(module, "DJANGO_DEBUG", None),
+        "DJANGO_SECRET_KEY": getattr(module, "DJANGO_SECRET_KEY", ""),
     }
 
 
 _LOCAL_CONFIG = _load_local_config()
 
 
+def _config_value(name, default=""):
+    return os.environ.get(name, _LOCAL_CONFIG.get(name, default))
+
+
+def _config_bool(name, default=False):
+    value = _config_value(name, default)
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=0i9l!$atp)6o-e(nbc98l)ks10lenn3^$@ch#hta)ckg_f5vo'
+SECRET_KEY = _config_value(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-=0i9l!$atp)6o-e(nbc98l)ks10lenn3^$@ch#hta)ckg_f5vo",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _config_bool("DJANGO_DEBUG", True)
 
 ALLOWED_HOSTS = [
     "localhost",
@@ -57,6 +74,15 @@ ALLOWED_HOSTS = [
     "radiantensemble.com",
     "www.radiantensemble.com",
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://radiantensemble.com",
+    "https://www.radiantensemble.com",
+]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 
 # Application definition
