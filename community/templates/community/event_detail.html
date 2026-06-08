@@ -1,0 +1,55 @@
+{% extends "community/base.html" %}
+
+{% block title %}{{ event.title }} | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="event-detail">
+    <p class="eyebrow">Event</p>
+    <div class="event-detail-header">
+      <h1>{{ event.title }}</h1>
+      {% if can_manage_event %}
+        <div class="event-actions">
+          <a class="secondary-button" href="{% url 'edit_event' event.id %}">Edit</a>
+          <form method="post" action="{% url 'delete_event_occurrence' event.id %}" onsubmit="return confirm('Delete only this occurrence? Other repeated occurrences will remain.');">
+            {% csrf_token %}
+            <input type="hidden" name="occurrence_date" value="{{ occurrence_date|date:'Y-m-d' }}">
+            <button class="secondary-button" type="submit">Delete This Occurrence</button>
+          </form>
+          <form method="post" action="{% url 'delete_event' event.id %}" onsubmit="return confirm('Delete this event? This cannot be undone.');">
+            {% csrf_token %}
+            <button class="danger-button" type="submit">Delete Series</button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+    <dl>
+      <div>
+        <dt>Date</dt>
+        <dd>{{ occurrence_date|date:"F j, Y" }}</dd>
+      </div>
+      <div>
+        <dt>Time</dt>
+        <dd>{{ event.event_time|time:"g:i A" }}</dd>
+      </div>
+      {% if event.location %}
+        <div>
+          <dt>Location</dt>
+          <dd>{{ event.location }}</dd>
+        </div>
+      {% endif %}
+      <div>
+        <dt>Visibility</dt>
+        <dd>{{ event.get_visibility_display }}</dd>
+      </div>
+      {% if event.repeat != "none" %}
+        <div>
+          <dt>Repeats</dt>
+          <dd>{{ event.get_repeat_display }}</dd>
+        </div>
+      {% endif %}
+    </dl>
+    {% if event.description %}
+      <div class="event-description">{{ event.description|urlize|linebreaks }}</div>
+    {% endif %}
+  </section>
+{% endblock %}

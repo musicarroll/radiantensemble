@@ -1,0 +1,39 @@
+{% extends "community/base.html" %}
+
+{% block title %}{{ profile.display_name }} | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="member-hero" style="--accent: {{ profile.accent_color }}">
+    <div>
+      <p class="eyebrow">Member page</p>
+      <h1>{{ profile.display_name }}</h1>
+      {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+    </div>
+  </section>
+  {% if profile.custom_css %}<style>{{ profile.custom_css }}</style>{% endif %}
+
+  <section class="content-grid">
+    <div>
+      <h2>Posts</h2>
+      {% for post in posts %}
+        <article class="content-card">
+          {% if post.title %}<h3>{{ post.title }}</h3>{% endif %}
+          <p>{{ post.body|urlize|linebreaksbr }}</p>
+        </article>
+      {% empty %}
+        <p>No visible posts yet.</p>
+      {% endfor %}
+    </div>
+    <div>
+      <h2>Artifacts</h2>
+      {% for artifact in artifacts %}
+        <article class="content-card">
+          <h3><a href="{{ artifact.file.url }}">{{ artifact.title }}</a></h3>
+          <p>{{ artifact.description }}</p>
+        </article>
+      {% empty %}
+        <p>No visible artifacts yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

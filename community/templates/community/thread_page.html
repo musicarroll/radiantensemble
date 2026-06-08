@@ -1,0 +1,14 @@
+{% extends "community/base.html" %}
+{% load static %}
+
+{% block title %}Messages | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <div id="radiant-thread" data-thread-id="{{ thread_id }}">
+    <section class="loading-shell">
+      <h1>Messages</h1>
+      <p>Loading conversation...</p>
+    </section>
+  </div>
+  <script type="module" src="{% static 'assets/thread.js' %}"></script>
+{% endblock %}

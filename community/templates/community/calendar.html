@@ -1,0 +1,46 @@
+{% extends "community/base.html" %}
+
+{% block title %}Calendar | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="calendar-shell">
+    <div class="calendar-toolbar">
+      <a class="secondary-button" href="{% url 'calendar' %}?year={{ previous_year }}&month={{ previous_month }}">Previous</a>
+      <h1>{{ month_name }} {{ year }}</h1>
+      <div class="calendar-toolbar-actions">
+        <a class="primary-button" href="{% url 'add_event' %}">Add Event</a>
+        <a class="secondary-button" href="{% url 'calendar' %}?year={{ next_year }}&month={{ next_month }}">Next</a>
+      </div>
+    </div>
+
+    <table class="calendar-grid">
+      <thead>
+        <tr>
+          <th>Sun</th>
+          <th>Mon</th>
+          <th>Tue</th>
+          <th>Wed</th>
+          <th>Thu</th>
+          <th>Fri</th>
+          <th>Sat</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in calendar_weeks %}
+          <tr>
+            {% for day in week %}
+              <td class="{% if not day.in_month %}outside-month{% endif %}">
+                <div class="calendar-day-number">{{ day.date.day }}</div>
+                <div class="calendar-events">
+                  {% for occurrence in day.occurrences %}
+                    <a href="{% url 'event_detail' occurrence.event.id %}?date={{ occurrence.date|date:'Y-m-d' }}">{{ occurrence.event.title }}</a>
+                  {% endfor %}
+                </div>
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

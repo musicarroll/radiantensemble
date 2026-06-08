@@ -1,0 +1,14 @@
+{% extends "community/base.html" %}
+
+{% block title %}Login | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="auth-panel">
+    <h1>Member Login</h1>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="primary-button" type="submit">Log in</button>
+    </form>
+  </section>
+{% endblock %}

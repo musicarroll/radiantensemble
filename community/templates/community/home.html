@@ -1,0 +1,14 @@
+{% extends "community/base.html" %}
+{% load static %}
+
+{% block title %}Radiant Ensemble | Home{% endblock %}
+
+{% block content %}
+  <div id="radiant-home" data-authenticated="{{ request.user.is_authenticated|yesno:'true,false' }}">
+    <section class="loading-shell">
+      <h1>Radiant Ensemble</h1>
+      <p>Loading member space...</p>
+    </section>
+  </div>
+  <script type="module" src="{% static 'assets/home.js' %}"></script>
+{% endblock %}

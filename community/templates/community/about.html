@@ -1,0 +1,26 @@
+{% extends "community/base.html" %}
+{% load static %}
+
+{% block title %}About | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="public-hero">
+    <img src="{% static 'community/images/radiant_graphic.png' %}" alt="Radiant Ensemble">
+  </section>
+
+  <section class="public-content">
+    <article>
+      <h2>Music And Community</h2>
+      <p>The public side of this site introduces the ensemble. The private member area supports the working life of the group: posts, direct messages, shared files, member pages, and organized musical artifacts.</p>
+    </article>
+    <article>
+      <h2>Member Space</h2>
+      <p>Registered members can post updates, upload scores and media, message other members, and control visibility for the content they share.</p>
+    </article>
+    <article>
+      <h2>Contact</h2>
+      <p>Questions about the ensemble, collaborations, or membership can be sent through the contact form.</p>
+      <a class="primary-button" href="{% url 'contact' %}">Contact Radiant Ensemble</a>
+    </article>
+  </section>
+{% endblock %}

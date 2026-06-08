@@ -1,0 +1,30 @@
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path("", views.home, name="home"),
+    path("about/", views.about, name="about"),
+    path("contact/", views.contact, name="contact"),
+    path("calendar/", views.calendar_page, name="calendar"),
+    path("calendar/add/", views.add_event, name="add_event"),
+    path("events/", views.upcoming_events, name="upcoming_events"),
+    path("events/<int:event_id>/", views.event_detail, name="event_detail"),
+    path("events/<int:event_id>/edit/", views.edit_event, name="edit_event"),
+    path("events/<int:event_id>/delete/", views.delete_event, name="delete_event"),
+    path("events/<int:event_id>/delete-occurrence/", views.delete_event_occurrence, name="delete_event_occurrence"),
+    path("members/<slug:slug>/", views.member_page, name="member_page"),
+    path("messages/<int:thread_id>/", views.thread_page, name="thread_page"),
+    path("api/me/", views.api_me, name="api_me"),
+    path("api/home-feed/", views.api_home_feed, name="api_home_feed"),
+    path("api/artifacts/", views.api_artifacts, name="api_artifacts"),
+    path("api/threads/", views.api_threads, name="api_threads"),
+    path("api/threads/create-direct/", views.create_direct_thread, name="create_direct_thread"),
+    path("api/threads/<int:thread_id>/", views.api_thread_detail, name="api_thread_detail"),
+    path("api/threads/<int:thread_id>/messages/", views.send_message, name="send_message"),
+    path("api/posts/", views.create_post, name="create_post"),
+    path("api/posts/<int:post_id>/", views.update_post, name="update_post"),
+    path("api/posts/<int:post_id>/delete/", views.delete_post, name="delete_post"),
+    path("api/posts/<int:post_id>/pin/", views.pin_post, name="pin_post"),
+    path("api/artifacts/upload/", views.upload_artifact, name="upload_artifact"),
+]

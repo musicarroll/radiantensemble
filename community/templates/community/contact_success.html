@@ -1,0 +1,11 @@
+{% extends "community/base.html" %}
+
+{% block title %}Message Sent | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="auth-panel contact-panel">
+    <h1>Message Sent</h1>
+    <p>Thank you, {{ message.name }}. Your message has been received.</p>
+    <a class="primary-button" href="{% url 'about' %}">Back to About</a>
+  </section>
+{% endblock %}

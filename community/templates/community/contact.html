@@ -1,0 +1,28 @@
+{% extends "community/base.html" %}
+
+{% block title %}Contact | Radiant Ensemble{% endblock %}
+
+{% block head %}
+  {% if turnstile_enabled and turnstile_site_key %}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <section class="auth-panel contact-panel">
+    <h1>Contact Radiant Ensemble</h1>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      {% if turnstile_enabled and turnstile_site_key %}
+        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+      {% elif turnstile_enabled %}
+        <p class="form-error">Contact verification is not configured yet.</p>
+      {% endif %}
+      {% if turnstile_error %}
+        <p class="form-error">{{ turnstile_error }}</p>
+      {% endif %}
+      <button class="primary-button" type="submit">Send Message</button>
+    </form>
+  </section>
+{% endblock %}
