@@ -463,7 +463,7 @@ def api_home_feed(request):
     posts = [_post_payload(post) for post in Post.objects.select_related("owner").all() if post.is_visible_to(request.user)]
     members = [
         _user_payload(profile.user)
-        for profile in MemberProfile.objects.select_related("user").all()
+        for profile in MemberProfile.objects.select_related("user").filter(user__is_active=True)
         if profile.page_is_public or request.user.is_authenticated
     ]
     return JsonResponse({"posts": posts[:25], "members": members})

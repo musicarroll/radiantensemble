@@ -192,3 +192,4 @@
 - Added tests for anonymous signup visibility, inactive account creation, blocked login before approval, and authenticated-user redirect away from signup.
 - Added Cloudflare Turnstile verification to the Sign Up form using the same local `.env/config.py` settings as the Contact form.
 - Signup requests now create inactive users only after Turnstile verification succeeds; tests cover disabled Turnstile and missing-configuration failure paths.
+- Updated the home feed API so member listings include only active user accounts, keeping pending signups out of the logged-in home page member list.

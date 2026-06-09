@@ -597,6 +597,16 @@ class ApiTests(TestCase):
         titles = [post["title"] for post in response.json()["posts"]]
         self.assertIn("Hello", titles)
 
+    def test_home_feed_member_list_excludes_inactive_users(self):
+        inactive = User.objects.create_user(username="pending-user", password="testpass", is_active=False)
+        inactive.member_profile.display_name = "Pending User"
+        inactive.member_profile.save()
+        self.client.login(username="owner", password="testpass")
+        response = self.client.get(reverse("api_home_feed"))
+        member_names = [member["displayName"] for member in response.json()["members"]]
+        self.assertIn("owner", member_names)
+        self.assertNotIn("Pending User", member_names)
+
     def test_staff_can_create_pinned_post(self):
         self.owner.is_staff = True
         self.owner.save(update_fields=["is_staff"])
