@@ -324,7 +324,7 @@ function PostCard({ post, me, onUpdated }) {
 function Feed({ posts, me, onPostUpdated }) {
   return (
     <section className="feed feed-stack">
-      <div className="hero-band">
+      <div className="hero-band home-graphic">
         <img src="/static/community/images/radiant_graphic.png" alt="Radiant Ensemble" />
       </div>
       {posts.map((post) => (

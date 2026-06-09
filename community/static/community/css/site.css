@@ -41,6 +41,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   min-height: 64px;
   padding: 0.75rem clamp(1rem, 4vw, 2.5rem);
@@ -54,6 +55,7 @@ select {
 .top-nav form {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -230,6 +232,12 @@ main {
   display: block;
   width: 100%;
   height: auto;
+}
+
+.home-graphic img,
+.about-graphic img {
+  width: 50%;
+  margin: 0 auto;
 }
 
 .eyebrow {
@@ -726,6 +734,15 @@ main {
 }
 
 @media (max-width: 960px) {
+  .site-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .top-nav {
+    width: 100%;
+  }
+
   .app-shell,
   .content-grid,
   .public-content,

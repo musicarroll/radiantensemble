@@ -178,3 +178,6 @@
 - Moved Bug Reports, Feature Requests, and Admin links out of the top navigation.
 - Revised the home page Account panel to show vertical links for My Profile, Bug Reports, Feature Requests, and Admin, with Admin visible only to staff users.
 - Centered the footer hosting credit at the bottom of each page.
+- Adjusted the header navigation to wrap cleanly on mobile.
+- Reduced the home page Radiant graphic display size to 50% width while leaving the source image unchanged.
+- Reduced the About page Radiant graphic display size to 50% width while leaving the source image unchanged.
