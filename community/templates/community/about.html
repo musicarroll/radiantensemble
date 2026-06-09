@@ -16,6 +16,9 @@
     <article>
       <h2>Member Space</h2>
       <p>Registered members can post updates, upload scores and media, message other members, and control visibility for the content they share.</p>
+      {% if not request.user.is_authenticated %}
+        <a class="primary-button" href="{% url 'signup' %}">Sign Up</a>
+      {% endif %}
     </article>
     <article>
       <h2>Contact</h2>

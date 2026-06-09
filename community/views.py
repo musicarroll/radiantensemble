@@ -12,7 +12,15 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .forms import BugReportForm, ContactForm, EventForm, FeatureRequestForm, MemberProfileForm, MemberProfileLinkFormSet
+from .forms import (
+    BugReportForm,
+    ContactForm,
+    EventForm,
+    FeatureRequestForm,
+    MemberProfileForm,
+    MemberProfileLinkFormSet,
+    PendingUserCreationForm,
+)
 from .models import (
     Artifact,
     BugReport,
@@ -37,6 +45,35 @@ def about(request):
     return render(request, "community/about.html")
 
 
+def signup(request):
+    if request.user.is_authenticated:
+        return redirect("home")
+    form = PendingUserCreationForm(request.POST or None)
+    turnstile_error = ""
+    if request.method == "POST" and form.is_valid():
+        remote_ip = _client_ip(request)
+        success, turnstile_error = _verify_turnstile(
+            request.POST.get("cf-turnstile-response", ""),
+            remote_ip,
+            "sign up",
+        )
+        if success:
+            user = form.save(commit=False)
+            user.is_active = False
+            user.save()
+            return render(request, "community/signup_pending.html", {"new_user": user})
+    return render(
+        request,
+        "community/signup.html",
+        {
+            "form": form,
+            "turnstile_error": turnstile_error,
+            "turnstile_site_key": settings.CF_TURNSTILE_SITE_KEY,
+            "turnstile_enabled": settings.CF_TURNSTILE_ENABLED,
+        },
+    )
+
+
 def _client_ip(request):
     forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if forwarded_for:
@@ -44,11 +81,11 @@ def _client_ip(request):
     return request.META.get("REMOTE_ADDR")
 
 
-def _verify_turnstile(token, remote_ip=None):
+def _verify_turnstile(token, remote_ip=None, form_label="form"):
     if not settings.CF_TURNSTILE_ENABLED:
         return True, ""
     if not settings.CF_TURNSTILE_SECRET_KEY:
-        return False, "Contact verification is not configured yet."
+        return False, f"{form_label.title()} verification is not configured yet."
     if not token:
         return False, "Please complete the verification challenge."
 
@@ -64,7 +101,7 @@ def _verify_turnstile(token, remote_ip=None):
         with urlrequest.urlopen(req, timeout=8) as response:
             result = json.loads(response.read().decode())
     except Exception:
-        return False, "Unable to verify the contact form challenge. Please try again."
+        return False, f"Unable to verify the {form_label} challenge. Please try again."
     if result.get("success"):
         return True, ""
     return False, "Verification failed. Please try again."
@@ -75,7 +112,11 @@ def contact(request):
     turnstile_error = ""
     if request.method == "POST" and form.is_valid():
         remote_ip = _client_ip(request)
-        success, turnstile_error = _verify_turnstile(request.POST.get("cf-turnstile-response", ""), remote_ip)
+        success, turnstile_error = _verify_turnstile(
+            request.POST.get("cf-turnstile-response", ""),
+            remote_ip,
+            "contact form",
+        )
         if success:
             message = form.save(commit=False)
             message.remote_addr = remote_ip

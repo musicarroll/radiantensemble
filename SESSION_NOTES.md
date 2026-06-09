@@ -182,3 +182,13 @@
 - Reduced the home page Radiant graphic display size to 50% width while leaving the source image unchanged.
 - Reduced the About page Radiant graphic display size to 50% width while leaving the source image unchanged.
 - Reworked the monthly calendar responsive CSS so the full month grid fits mobile portrait and short landscape screens without forcing horizontal scrolling.
+
+## 2026-06-09 Pending Approval Sign Up
+
+- Added a public Sign Up view backed by Django's native `UserCreationForm`.
+- New signups create standard Django user accounts with `is_active=False` so staff must approve them before login works.
+- Added an account-awaiting-approval response page explaining that staff will notify the requester once active.
+- Added anonymous-only Sign Up links in the shared navigation and the public About page.
+- Added tests for anonymous signup visibility, inactive account creation, blocked login before approval, and authenticated-user redirect away from signup.
+- Added Cloudflare Turnstile verification to the Sign Up form using the same local `.env/config.py` settings as the Contact form.
+- Signup requests now create inactive users only after Turnstile verification succeeds; tests cover disabled Turnstile and missing-configuration failure paths.

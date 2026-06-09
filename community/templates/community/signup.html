@@ -1,0 +1,29 @@
+{% extends "community/base.html" %}
+
+{% block title %}Sign Up | Radiant Ensemble{% endblock %}
+
+{% block head %}
+  {% if turnstile_enabled and turnstile_site_key %}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <section class="auth-panel">
+    <h1>Member Sign Up</h1>
+    <p class="meta">Create a username and password. Your account will remain inactive until a staff member approves it.</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      {% if turnstile_enabled and turnstile_site_key %}
+        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+      {% elif turnstile_enabled %}
+        <p class="form-error">Sign up verification is not configured yet.</p>
+      {% endif %}
+      {% if turnstile_error %}
+        <p class="form-error">{{ turnstile_error }}</p>
+      {% endif %}
+      <button class="primary-button" type="submit">Request Account</button>
+    </form>
+  </section>
+{% endblock %}

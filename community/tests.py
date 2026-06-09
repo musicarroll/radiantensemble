@@ -45,6 +45,47 @@ class PublicPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Radiant Ensemble")
 
+    def test_signup_link_shows_for_anonymous_visitors(self):
+        response = self.client.get(reverse("about"))
+        self.assertContains(response, reverse("signup"))
+        self.assertContains(response, "Sign Up")
+
+    @override_settings(CF_TURNSTILE_ENABLED=False)
+    def test_signup_creates_inactive_user_when_turnstile_disabled(self):
+        response = self.client.post(
+            reverse("signup"),
+            {
+                "username": "prospective",
+                "password1": "safe-test-pass-123",
+                "password2": "safe-test-pass-123",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Account Awaiting Approval")
+        user = User.objects.get(username="prospective")
+        self.assertFalse(user.is_active)
+        self.assertFalse(self.client.login(username="prospective", password="safe-test-pass-123"))
+
+    @override_settings(CF_TURNSTILE_ENABLED=True, CF_TURNSTILE_SECRET_KEY="")
+    def test_signup_requires_turnstile_configuration_when_enabled(self):
+        response = self.client.post(
+            reverse("signup"),
+            {
+                "username": "prospective",
+                "password1": "safe-test-pass-123",
+                "password2": "safe-test-pass-123",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sign Up verification is not configured yet.")
+        self.assertFalse(User.objects.filter(username="prospective").exists())
+
+    def test_signup_redirects_authenticated_users_home(self):
+        User.objects.create_user(username="member", password="testpass")
+        self.client.login(username="member", password="testpass")
+        response = self.client.get(reverse("signup"))
+        self.assertRedirects(response, reverse("home"))
+
     @override_settings(CF_TURNSTILE_ENABLED=False)
     def test_contact_form_saves_when_turnstile_disabled(self):
         response = self.client.post(

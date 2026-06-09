@@ -1,0 +1,12 @@
+{% extends "community/base.html" %}
+
+{% block title %}Account Awaiting Approval | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="auth-panel">
+    <h1>Account Awaiting Approval</h1>
+    <p>Your sign up request for <strong>{{ new_user.username }}</strong> has been received.</p>
+    <p class="meta">The account is awaiting approval. A staff member will notify you when the account is active.</p>
+    <a class="primary-button" href="{% url 'about' %}">Back to About</a>
+  </section>
+{% endblock %}
