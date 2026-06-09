@@ -1,6 +1,7 @@
 from django import forms
+from django.forms import inlineformset_factory
 
-from .models import BugReport, ContactMessage, Event, FeatureRequest
+from .models import BugReport, ContactMessage, Event, FeatureRequest, MemberProfile, MemberProfileLink
 
 
 class ContactForm(forms.ModelForm):
@@ -52,3 +53,21 @@ class FeatureRequestForm(forms.ModelForm):
             "use_case": forms.Textarea(attrs={"rows": 4}),
             "benefit": forms.Textarea(attrs={"rows": 3}),
         }
+
+
+class MemberProfileForm(forms.ModelForm):
+    class Meta:
+        model = MemberProfile
+        fields = ["display_name", "photo", "bio", "phone", "email", "accent_color"]
+        widgets = {
+            "bio": forms.Textarea(attrs={"rows": 6}),
+        }
+
+
+MemberProfileLinkFormSet = inlineformset_factory(
+    MemberProfile,
+    MemberProfileLink,
+    fields=["title", "url", "description", "sort_order"],
+    extra=3,
+    can_delete=True,
+)

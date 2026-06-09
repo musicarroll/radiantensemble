@@ -8,17 +8,24 @@ from .models import (
     EventCancellation,
     FeatureRequest,
     MemberProfile,
+    MemberProfileLink,
     Message,
     MessageThread,
     Post,
 )
 
 
+class MemberProfileLinkInline(admin.TabularInline):
+    model = MemberProfileLink
+    extra = 0
+
+
 @admin.register(MemberProfile)
 class MemberProfileAdmin(admin.ModelAdmin):
     list_display = ("display_name", "user", "page_is_public", "page_theme", "updated_at")
     prepopulated_fields = {"slug": ("display_name",)}
-    search_fields = ("display_name", "user__username", "bio")
+    search_fields = ("display_name", "user__username", "bio", "phone", "email")
+    inlines = [MemberProfileLinkInline]
 
 
 @admin.register(Post)

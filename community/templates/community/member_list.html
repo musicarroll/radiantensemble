@@ -1,0 +1,24 @@
+{% extends "community/base.html" %}
+
+{% block title %}Members | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="member-list-page">
+    <h1>Members</h1>
+    <div class="member-profile-grid">
+      {% for profile in profiles %}
+        <article class="member-profile-card">
+          {% if profile.photo %}
+            <img src="{{ profile.photo.url }}" alt="{{ profile.display_name }}">
+          {% endif %}
+          <h2><a href="{% url 'member_page' profile.slug %}">{{ profile.display_name }}</a></h2>
+          {% if profile.bio %}<p>{{ profile.bio|truncatewords:24 }}</p>{% endif %}
+        </article>
+      {% empty %}
+        <article class="member-profile-card">
+          <p>No member profiles are available yet.</p>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

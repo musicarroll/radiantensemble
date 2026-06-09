@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .forms import BugReportForm, ContactForm, EventForm, FeatureRequestForm
+from .forms import BugReportForm, ContactForm, EventForm, FeatureRequestForm, MemberProfileForm, MemberProfileLinkFormSet
 from .models import (
     Artifact,
     BugReport,
@@ -310,10 +310,15 @@ def feature_request_detail(request, request_id):
     return render(request, "community/feature_request_detail.html", {"feature": feature})
 
 
+@login_required
+def member_list(request):
+    profiles = MemberProfile.objects.select_related("user").prefetch_related("links").all()
+    return render(request, "community/member_list.html", {"profiles": profiles})
+
+
+@login_required
 def member_page(request, slug):
     profile = get_object_or_404(MemberProfile, slug=slug)
-    if not profile.page_is_public and not request.user.is_authenticated:
-        raise Http404("Member page not found")
     posts = [post for post in Post.objects.filter(owner=profile.user) if post.is_visible_to(request.user)]
     artifacts = [artifact for artifact in Artifact.objects.filter(owner=profile.user) if artifact.is_visible_to(request.user)]
     return render(
@@ -321,6 +326,21 @@ def member_page(request, slug):
         "community/member_page.html",
         {"profile": profile, "posts": posts, "artifacts": artifacts},
     )
+
+
+@login_required
+def edit_profile(request):
+    profile, _created = MemberProfile.objects.get_or_create(
+        user=request.user,
+        defaults={"display_name": request.user.get_full_name() or request.user.username},
+    )
+    form = MemberProfileForm(request.POST or None, request.FILES or None, instance=profile)
+    formset = MemberProfileLinkFormSet(request.POST or None, instance=profile)
+    if request.method == "POST" and form.is_valid() and formset.is_valid():
+        form.save()
+        formset.save()
+        return redirect("member_page", slug=profile.slug)
+    return render(request, "community/profile_form.html", {"form": form, "formset": formset, "profile": profile})
 
 
 @login_required

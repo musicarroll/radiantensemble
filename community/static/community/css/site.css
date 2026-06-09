@@ -15,9 +15,12 @@
 
 body {
   margin: 0;
+  min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
 }
 
 a {
@@ -78,6 +81,32 @@ select {
   text-decoration: none;
 }
 
+main {
+  flex: 1;
+}
+
+.site-footer {
+  padding: 1rem clamp(1rem, 4vw, 2.5rem);
+  color: var(--muted);
+  background: rgba(255, 253, 248, 0.94);
+  border-top: 1px solid var(--line);
+}
+
+.hosting-credit a {
+  color: var(--accent-dark);
+  text-decoration: none;
+}
+
+.hosting-credit a:hover {
+  text-decoration: underline;
+}
+
+.hosting-credit {
+  margin: 0;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 .loading-shell,
 .auth-panel,
 .member-hero,
@@ -118,7 +147,10 @@ select {
 .event-form-panel select,
 .work-item-form-panel textarea,
 .work-item-form-panel input,
-.work-item-form-panel select {
+.work-item-form-panel select,
+.profile-form-panel textarea,
+.profile-form-panel input,
+.profile-form-panel select {
   width: 100%;
   padding: 0.65rem;
   border: 1px solid var(--line);
@@ -166,6 +198,9 @@ select {
 }
 
 .member-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
   padding: 2.25rem;
   color: white;
   background: linear-gradient(135deg, var(--accent), #1f2937);
@@ -175,6 +210,15 @@ select {
 .member-hero h1 {
   margin: 0;
   font-size: clamp(2rem, 4vw, 3.5rem);
+}
+
+.profile-photo {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.18);
+  border: 3px solid rgba(255, 255, 255, 0.75);
+  border-radius: 8px;
 }
 
 .public-hero {
@@ -212,6 +256,43 @@ select {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+.member-list-page {
+  width: min(1120px, calc(100vw - 2rem));
+  margin: 2rem auto;
+}
+
+.member-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.member-profile-card,
+.profile-link-form {
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.member-profile-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.profile-link-formset {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.profile-link-form legend {
+  font-weight: 700;
 }
 
 .calendar-shell,
@@ -500,17 +581,30 @@ select {
 }
 
 .member-list,
+.account-links,
 .thread-list,
 .artifact-list {
   display: grid;
   gap: 0.6rem;
 }
 
+.account-links {
+  margin-top: 0.75rem;
+}
+
 .member-link,
+.account-links a,
 .thread {
   display: block;
   padding: 0.75rem;
   text-decoration: none;
+}
+
+.account-links a {
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .thread {
@@ -634,8 +728,14 @@ select {
 @media (max-width: 960px) {
   .app-shell,
   .content-grid,
-  .public-content {
+  .public-content,
+  .member-profile-grid {
     grid-template-columns: 1fr;
+  }
+
+  .member-hero {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .rail,

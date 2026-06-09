@@ -25,7 +25,10 @@ class MemberProfile(TimestampedModel):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="member_profile")
     display_name = models.CharField(max_length=120)
     slug = models.SlugField(max_length=140, unique=True)
+    photo = models.FileField(upload_to="member_photos/%Y/%m/", blank=True)
     bio = models.TextField(blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    email = models.EmailField(blank=True)
     accent_color = models.CharField(max_length=24, default="#7c3aed")
     page_theme = models.CharField(max_length=40, default="radiant")
     custom_css = models.TextField(blank=True)
@@ -46,6 +49,20 @@ class MemberProfile(TimestampedModel):
 
     def __str__(self):
         return self.display_name
+
+
+class MemberProfileLink(TimestampedModel):
+    profile = models.ForeignKey(MemberProfile, on_delete=models.CASCADE, related_name="links")
+    title = models.CharField(max_length=160)
+    url = models.URLField()
+    description = models.CharField(max_length=255, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "title"]
+
+    def __str__(self):
+        return self.title
 
 
 class VisibleContent(TimestampedModel):

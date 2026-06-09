@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.urls import reverse
 from datetime import date, time
 
-from .models import BugReport, ContactMessage, Event, EventCancellation, FeatureRequest, MessageThread, Post, Visibility
+from .models import BugReport, ContactMessage, Event, EventCancellation, FeatureRequest, MemberProfileLink, MessageThread, Post, Visibility
 
 
 class VisibilityTests(TestCase):
@@ -74,6 +74,60 @@ class PublicPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Contact verification is not configured yet.")
         self.assertEqual(ContactMessage.objects.count(), 0)
+
+
+class MemberProfileTests(TestCase):
+    def setUp(self):
+        self.member = User.objects.create_user(username="profile-member", password="testpass")
+
+    def test_member_list_requires_login(self):
+        response = self.client.get(reverse("member_list"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_member_detail_requires_login(self):
+        response = self.client.get(reverse("member_page", kwargs={"slug": self.member.member_profile.slug}))
+        self.assertEqual(response.status_code, 302)
+
+    def test_member_can_view_member_list(self):
+        self.client.login(username="profile-member", password="testpass")
+        response = self.client.get(reverse("member_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "profile-member")
+
+    def test_member_can_update_own_profile_and_links(self):
+        self.client.login(username="profile-member", password="testpass")
+        response = self.client.post(
+            reverse("edit_profile"),
+            {
+                "display_name": "Profile Member",
+                "bio": "I play guitar.",
+                "phone": "555-0100",
+                "email": "profile@example.com",
+                "accent_color": "#123456",
+                "links-TOTAL_FORMS": "3",
+                "links-INITIAL_FORMS": "0",
+                "links-MIN_NUM_FORMS": "0",
+                "links-MAX_NUM_FORMS": "1000",
+                "links-0-title": "Interesting Site",
+                "links-0-url": "https://example.com",
+                "links-0-description": "Worth reading.",
+                "links-0-sort_order": "1",
+                "links-1-title": "",
+                "links-1-url": "",
+                "links-1-description": "",
+                "links-1-sort_order": "0",
+                "links-2-title": "",
+                "links-2-url": "",
+                "links-2-description": "",
+                "links-2-sort_order": "0",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.member.member_profile.refresh_from_db()
+        self.assertEqual(self.member.member_profile.display_name, "Profile Member")
+        self.assertEqual(self.member.member_profile.phone, "555-0100")
+        self.assertEqual(self.member.member_profile.email, "profile@example.com")
+        self.assertTrue(MemberProfileLink.objects.filter(profile=self.member.member_profile, title="Interesting Site").exists())
 
 
 class EventTests(TestCase):

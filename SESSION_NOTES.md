@@ -160,3 +160,21 @@
 - Added member-only pages for feature request list, create, and detail.
 - Added authenticated navigation links for Bugs and Features.
 - Added tests confirming anonymous users cannot access lists/details, members can submit both types, and details render only for authenticated members.
+
+## 2026-06-08 Member Profile Views And Editing
+
+- Extended `MemberProfile` with profile photo upload, dedicated phone, and dedicated email fields.
+- Added `MemberProfileLink` model so members can maintain a list of recommended links with optional descriptions and sort order.
+- Added member-only profile list at `/members/`.
+- Converted member profile detail pages to member-only access.
+- Added `/members/me/edit/` so members can update their own profile photo, bio, phone, email, accent color, and recommended links.
+- Added admin inline management for member profile links.
+- Added navigation links for Members and My Profile.
+- Added tests for member-only profile list/detail access and profile/link editing.
+
+## 2026-06-09 Footer Navigation And Hosting Credit
+
+- Added a shared footer banner to every page: "Designed and hosted by cognotrend.com LLC", with `cognotrend.com` linking to `https://cognotrend.com`.
+- Moved Bug Reports, Feature Requests, and Admin links out of the top navigation.
+- Revised the home page Account panel to show vertical links for My Profile, Bug Reports, Feature Requests, and Admin, with Admin visible only to staff users.
+- Centered the footer hosting credit at the bottom of each page.

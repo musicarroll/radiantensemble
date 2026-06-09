@@ -4,10 +4,18 @@
 
 {% block content %}
   <section class="member-hero" style="--accent: {{ profile.accent_color }}">
+    {% if profile.photo %}
+      <img class="profile-photo" src="{{ profile.photo.url }}" alt="{{ profile.display_name }}">
+    {% endif %}
     <div>
       <p class="eyebrow">Member page</p>
       <h1>{{ profile.display_name }}</h1>
-      {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+      {% if profile.bio %}<p>{{ profile.bio|urlize|linebreaksbr }}</p>{% endif %}
+      {% if profile.email %}<p><a href="mailto:{{ profile.email }}">{{ profile.email }}</a></p>{% endif %}
+      {% if profile.phone %}<p>{{ profile.phone }}</p>{% endif %}
+      {% if request.user == profile.user %}
+        <a class="secondary-button" href="{% url 'edit_profile' %}">Edit Profile</a>
+      {% endif %}
     </div>
   </section>
   {% if profile.custom_css %}<style>{{ profile.custom_css }}</style>{% endif %}
@@ -25,6 +33,23 @@
       {% endfor %}
     </div>
     <div>
+      <h2>Profile</h2>
+      {% if profile.email or profile.phone %}
+        <article class="content-card">
+          <h3>Contact</h3>
+          {% if profile.email %}<p>Email: <a href="mailto:{{ profile.email }}">{{ profile.email }}</a></p>{% endif %}
+          {% if profile.phone %}<p>Phone: {{ profile.phone }}</p>{% endif %}
+        </article>
+      {% endif %}
+      <h2>Links</h2>
+      {% for link in profile.links.all %}
+        <article class="content-card">
+          <h3><a href="{{ link.url }}">{{ link.title }}</a></h3>
+          {% if link.description %}<p>{{ link.description }}</p>{% endif %}
+        </article>
+      {% empty %}
+        <p>No member links yet.</p>
+      {% endfor %}
       <h2>Artifacts</h2>
       {% for artifact in artifacts %}
         <article class="content-card">

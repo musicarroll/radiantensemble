@@ -184,7 +184,17 @@ function LeftRail({ members, me }) {
       </section>
       <section className="panel">
         <h2>Account</h2>
-        {me?.authenticated ? <p className="meta">Signed in as {me.user.displayName}</p> : <p className="meta">Public visitor view</p>}
+        {me?.authenticated ? (
+          <>
+            <p className="meta">Signed in as {me.user.displayName}</p>
+            <nav className="account-links" aria-label="Account navigation">
+              <a href="/members/me/edit/">My Profile</a>
+              <a href="/bugs/">Bug Reports</a>
+              <a href="/features/">Feature Requests</a>
+              {me.user.isStaff && <a href="/admin/">Admin</a>}
+            </nav>
+          </>
+        ) : <p className="meta">Public visitor view</p>}
       </section>
     </aside>
   );

@@ -1,0 +1,23 @@
+{% extends "community/base.html" %}
+
+{% block title %}Edit Profile | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="auth-panel profile-form-panel">
+    <h1>Edit Profile</h1>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <h2>Recommended Links</h2>
+      {{ formset.management_form }}
+      <div class="profile-link-formset">
+        {% for link_form in formset %}
+          <fieldset class="profile-link-form">
+            {{ link_form.as_p }}
+          </fieldset>
+        {% endfor %}
+      </div>
+      <button class="primary-button" type="submit">Save Profile</button>
+    </form>
+  </section>
+{% endblock %}
