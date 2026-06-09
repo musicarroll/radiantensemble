@@ -181,3 +181,4 @@
 - Adjusted the header navigation to wrap cleanly on mobile.
 - Reduced the home page Radiant graphic display size to 50% width while leaving the source image unchanged.
 - Reduced the About page Radiant graphic display size to 50% width while leaving the source image unchanged.
+- Reworked the monthly calendar responsive CSS so the full month grid fits mobile portrait and short landscape screens without forcing horizontal scrolling.
