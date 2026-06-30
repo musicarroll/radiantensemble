@@ -479,7 +479,7 @@ function MessagingWidget({ authenticated, members, me, threads, onChanged }) {
 }
 
 function RightPanel({ artifacts, threads, authenticated, members, me, onArtifactUploaded, onMessagesChanged }) {
-  const recentArtifacts = useMemo(() => artifacts.slice(0, 6), [artifacts]);
+  const recentArtifacts = useMemo(() => artifacts.slice(0, 3), [artifacts]);
   return (
     <aside className="side-panel feed-stack">
       <section className="panel">
@@ -489,6 +489,7 @@ function RightPanel({ artifacts, threads, authenticated, members, me, onArtifact
       <section className="panel">
         <h2>Artifacts</h2>
         <ArtifactUpload authenticated={authenticated} onUploaded={onArtifactUploaded} />
+        <a className="artifact-search-link" href="/artifacts/search/">Search artifacts</a>
         <div className="artifact-list">
           {recentArtifacts.map((artifact) => (
             <article className="artifact" key={artifact.id}>

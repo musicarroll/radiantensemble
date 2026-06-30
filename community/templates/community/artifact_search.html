@@ -1,0 +1,68 @@
+{% extends "community/base.html" %}
+
+{% block title %}Artifact Search | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="artifact-search-page">
+    <div class="page-heading">
+      <p class="eyebrow">Artifacts</p>
+      <h1>Search Artifacts</h1>
+    </div>
+
+    <form class="artifact-search-form" method="get">
+      <div class="search-field-grid">
+        {% for field in form %}
+          <label>
+            <span>{{ field.label }}</span>
+            {{ field }}
+          </label>
+        {% endfor %}
+      </div>
+      <div class="search-actions">
+        <a class="secondary-button" href="{% url 'artifact_search' %}">Clear</a>
+        <button class="primary-button" type="submit">Search</button>
+      </div>
+    </form>
+
+    <section class="artifact-results">
+      <div class="results-heading">
+        <h2>Results</h2>
+        <p class="meta">{{ page_obj.paginator.count }} artifact{{ page_obj.paginator.count|pluralize }}</p>
+      </div>
+
+      <div class="artifact-list">
+        {% for artifact in page_obj %}
+          <article class="artifact">
+            <strong><a href="{{ artifact.file.url }}">{{ artifact.title }}</a></strong>
+            <p>{{ artifact.artifact_type }} · {{ artifact.visibility }}</p>
+            {% if artifact.description %}<p>{{ artifact.description }}</p>{% endif %}
+            <p>
+              {% if artifact.original_filename %}{{ artifact.original_filename }}{% else %}{{ artifact.file.name }}{% endif %}
+              {% if artifact.file_size %} · {{ artifact.file_size }} bytes{% endif %}
+            </p>
+          </article>
+        {% empty %}
+          <p class="meta">
+            {% if searched %}
+              No artifacts match those search fields.
+            {% else %}
+              Enter one or more fields to search visible artifacts.
+            {% endif %}
+          </p>
+        {% endfor %}
+      </div>
+
+      {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="pagination" aria-label="Artifact result pages">
+          {% if page_obj.has_previous %}
+            <a class="secondary-button" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+          {% endif %}
+          <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+          {% if page_obj.has_next %}
+            <a class="secondary-button" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

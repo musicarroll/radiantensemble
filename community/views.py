@@ -1,11 +1,12 @@
 import json
 from calendar import Calendar, month_name
-from datetime import date
+from datetime import date, datetime, time
 from urllib import parse, request as urlrequest
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -13,6 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .forms import (
+    ArtifactSearchForm,
     BugReportForm,
     ContactForm,
     EventForm,
@@ -33,6 +35,7 @@ from .models import (
     Post,
     Visibility,
 )
+from .utils import calculate_sha256, detect_mime_type, sign_artifact_metadata
 
 
 def home(request):
@@ -422,6 +425,11 @@ def _artifact_payload(artifact):
         "artifactType": artifact.artifact_type,
         "tags": [tag.strip() for tag in artifact.tags.split(",") if tag.strip()],
         "url": artifact.file.url if artifact.file else "",
+        "originalFilename": artifact.original_filename,
+        "storedFilename": artifact.stored_filename,
+        "mimeType": artifact.mime_type,
+        "fileSize": artifact.file_size,
+        "sha256Checksum": artifact.sha256_checksum,
         "owner": _user_payload(artifact.owner),
         "visibility": artifact.visibility,
         "createdAt": artifact.created_at.isoformat(),
@@ -476,6 +484,64 @@ def api_artifacts(request):
         if artifact.is_visible_to(request.user)
     ]
     return JsonResponse({"artifacts": artifacts[:50]})
+
+
+def _date_bound(value, end_of_day=False):
+    if not value:
+        return None
+    return timezone.make_aware(datetime.combine(value, time.max if end_of_day else time.min))
+
+
+def artifact_search(request):
+    form = ArtifactSearchForm(request.GET or None)
+    artifacts = Artifact.objects.select_related("owner").all()
+    searched = bool(request.GET)
+
+    if form.is_valid():
+        data = form.cleaned_data
+        if data["owner"]:
+            owner = data["owner"].strip()
+            owner_filter = {"owner__username__icontains": owner}
+            if owner.isdigit():
+                owner_filter = {"owner_id": int(owner)}
+            artifacts = artifacts.filter(**owner_filter)
+        for field in ("title", "description", "tags"):
+            if data[field]:
+                artifacts = artifacts.filter(**{f"{field}__icontains": data[field]})
+        if data["artifact_type"]:
+            artifacts = artifacts.filter(artifact_type=data["artifact_type"])
+        if data["visibility"]:
+            artifacts = artifacts.filter(visibility=data["visibility"])
+
+        created_after = _date_bound(data["created_after"])
+        created_before = _date_bound(data["created_before"], end_of_day=True)
+        updated_after = _date_bound(data["updated_after"])
+        updated_before = _date_bound(data["updated_before"], end_of_day=True)
+        if created_after:
+            artifacts = artifacts.filter(created_at__gte=created_after)
+        if created_before:
+            artifacts = artifacts.filter(created_at__lte=created_before)
+        if updated_after:
+            artifacts = artifacts.filter(updated_at__gte=updated_after)
+        if updated_before:
+            artifacts = artifacts.filter(updated_at__lte=updated_before)
+
+    visible_artifacts = [artifact for artifact in artifacts if artifact.is_visible_to(request.user)]
+    paginator = Paginator(visible_artifacts, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+
+    return render(
+        request,
+        "community/artifact_search.html",
+        {
+            "form": form,
+            "page_obj": page_obj,
+            "searched": searched,
+            "query_string": query_params.urlencode(),
+        },
+    )
 
 
 @login_required
@@ -600,15 +666,47 @@ def upload_artifact(request):
     uploaded_file = request.FILES.get("file")
     if not uploaded_file:
         return JsonResponse({"error": "A file upload is required."}, status=400)
-    artifact = Artifact.objects.create(
+
+    # FileField metadata harvesting order:
+    # 1. capture original uploaded name
+    # 2. compute checksum
+    # 3. detect MIME type
+    # 4. record file size
+    # 5. save file through Django storage
+    # 6. capture final stored name
+    # 7. sign harvested metadata
+    # 8. save metadata on the model
+    original_filename = uploaded_file.name
+    sha256_checksum = calculate_sha256(uploaded_file)
+    mime_type = detect_mime_type(uploaded_file, original_filename)
+    file_size = uploaded_file.size or 0
+    try:
+        uploaded_file.seek(0)
+    except (AttributeError, OSError):
+        pass
+
+    artifact = Artifact(
         owner=request.user,
         title=request.POST.get("title") or uploaded_file.name,
         description=request.POST.get("description", ""),
         artifact_type=request.POST.get("artifact_type", Artifact.ArtifactType.OTHER),
         visibility=request.POST.get("visibility", Visibility.MEMBERS),
         tags=request.POST.get("tags", ""),
-        file=uploaded_file,
+        original_filename=original_filename,
+        mime_type=mime_type,
+        file_size=file_size,
+        sha256_checksum=sha256_checksum,
     )
+    artifact.file.save(uploaded_file.name, uploaded_file, save=False)
+    artifact.stored_filename = artifact.file.name
+    artifact.metadata_signature = sign_artifact_metadata(
+        original_filename=artifact.original_filename,
+        stored_filename=artifact.stored_filename,
+        mime_type=artifact.mime_type,
+        file_size=artifact.file_size,
+        sha256_checksum=artifact.sha256_checksum,
+    )
+    artifact.save()
     return JsonResponse({"artifact": _artifact_payload(artifact)}, status=201)
 
 # Create your views here.

@@ -23,6 +23,7 @@ urlpatterns = [
     path("members/", views.member_list, name="member_list"),
     path("members/me/edit/", views.edit_profile, name="edit_profile"),
     path("members/<slug:slug>/", views.member_page, name="member_page"),
+    path("artifacts/search/", views.artifact_search, name="artifact_search"),
     path("messages/<int:thread_id>/", views.thread_page, name="thread_page"),
     path("api/me/", views.api_me, name="api_me"),
     path("api/home-feed/", views.api_home_feed, name="api_home_feed"),

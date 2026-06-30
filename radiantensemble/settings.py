@@ -67,6 +67,7 @@ SECRET_KEY = _config_value(
     "DJANGO_SECRET_KEY",
     "django-insecure-=0i9l!$atp)6o-e(nbc98l)ks10lenn3^$@ch#hta)ckg_f5vo",
 )
+ARTIFACT_METADATA_HMAC_KEY = os.environ.get("ARTIFACT_METADATA_HMAC_KEY", SECRET_KEY)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = _config_bool("DJANGO_DEBUG", True)

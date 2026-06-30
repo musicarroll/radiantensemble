@@ -4,3 +4,7 @@ CF_TURNSTILE_ENABLED = True
 
 DJANGO_DEBUG = False
 DJANGO_SECRET_KEY = ""
+
+NEXTCLOUD_BASE_URL = "https://nextcloud.radiantensemble.com"
+NEXTCLOUD_USERNAME = ""
+NEXTCLOUD_APP_PASSWORD = ""

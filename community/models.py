@@ -5,6 +5,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
+from .utils import calculate_sha256, verify_artifact_metadata_signature
+
 
 class Visibility(models.TextChoices):
     PUBLIC = "public", "Public"
@@ -117,12 +119,41 @@ class Artifact(VisibleContent):
     artifact_type = models.CharField(max_length=20, choices=ArtifactType.choices, default=ArtifactType.OTHER)
     file = models.FileField(upload_to="artifacts/%Y/%m/")
     tags = models.CharField(max_length=255, blank=True, help_text="Comma-separated tags")
+    original_filename = models.CharField(max_length=255, blank=True, default="")
+    stored_filename = models.CharField(max_length=255, blank=True, default="")
+    mime_type = models.CharField(max_length=255, blank=True)
+    file_size = models.BigIntegerField(default=0)
+    sha256_checksum = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    metadata_signature = models.CharField(max_length=64, blank=True)
+    signature_algorithm = models.CharField(max_length=50, default="hmac-sha256")
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return self.title
+
+    def duplicate_artifacts(self):
+        if not self.sha256_checksum:
+            return Artifact.objects.none()
+        queryset = Artifact.objects.filter(sha256_checksum=self.sha256_checksum)
+        if self.pk:
+            queryset = queryset.exclude(pk=self.pk)
+        return queryset
+
+    def recompute_sha256(self):
+        if not self.file:
+            return ""
+        with self.file.open("rb") as file_obj:
+            return calculate_sha256(file_obj)
+
+    def verify_file_integrity(self):
+        if not self.sha256_checksum:
+            return False
+        return self.recompute_sha256() == self.sha256_checksum
+
+    def verify_metadata_signature(self):
+        return verify_artifact_metadata_signature(self)
 
 
 class MessageThread(TimestampedModel):

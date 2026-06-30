@@ -114,7 +114,8 @@ main {
 .member-hero,
 .public-hero,
 .public-content,
-.content-grid {
+.content-grid,
+.artifact-search-page {
   width: min(1120px, calc(100vw - 2rem));
   margin: 2rem auto;
 }
@@ -573,6 +574,18 @@ main {
   border-bottom: 1px solid var(--line);
 }
 
+.artifact-search-link {
+  display: inline-block;
+  margin: 0 0 1rem;
+  color: var(--accent-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.artifact-search-link:hover {
+  text-decoration: underline;
+}
+
 .message-form {
   margin-bottom: 0.75rem;
 }
@@ -638,6 +651,70 @@ main {
   max-height: 280px;
   overflow: auto;
   padding-right: 0.25rem;
+}
+
+.artifact-search-form,
+.artifact-results {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.search-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.search-field-grid label,
+.search-field-grid span {
+  display: block;
+}
+
+.search-field-grid span {
+  margin-bottom: 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.search-field-grid input,
+.search-field-grid select {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+}
+
+.search-actions,
+.results-heading,
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.search-actions {
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.results-heading {
+  margin-bottom: 1rem;
+}
+
+.results-heading h2,
+.results-heading p {
+  margin: 0;
+}
+
+.pagination {
+  justify-content: center;
+  margin-top: 1rem;
 }
 
 .message-list {
@@ -746,7 +823,8 @@ main {
   .app-shell,
   .content-grid,
   .public-content,
-  .member-profile-grid {
+  .member-profile-grid,
+  .search-field-grid {
     grid-template-columns: 1fr;
   }
 

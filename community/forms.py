@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.forms import inlineformset_factory
 
-from .models import BugReport, ContactMessage, Event, FeatureRequest, MemberProfile, MemberProfileLink
+from .models import Artifact, BugReport, ContactMessage, Event, FeatureRequest, MemberProfile, MemberProfileLink, Visibility
 
 
 class PendingUserCreationForm(UserCreationForm):
@@ -79,3 +79,28 @@ MemberProfileLinkFormSet = inlineformset_factory(
     extra=3,
     can_delete=True,
 )
+
+
+class ArtifactSearchForm(forms.Form):
+    title = forms.CharField(required=False)
+    description = forms.CharField(required=False)
+    tags = forms.CharField(required=False)
+    owner = forms.CharField(required=False, label="Owner username or ID")
+    artifact_type = forms.ChoiceField(
+        required=False,
+        choices=[("", "Any")] + list(Artifact.ArtifactType.choices),
+    )
+    visibility = forms.ChoiceField(
+        required=False,
+        choices=[("", "Any")] + list(Visibility.choices),
+    )
+    created_after = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    created_before = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    updated_after = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    updated_before = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            if not isinstance(field.widget, forms.Select):
+                field.widget.attrs.setdefault("placeholder", "Any")

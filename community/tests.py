@@ -1,10 +1,31 @@
+import hashlib
+import shutil
+import tempfile
 from django.contrib.auth.models import Group, User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from django.urls import reverse
 from datetime import date, time
 
-from .models import BugReport, ContactMessage, Event, EventCancellation, FeatureRequest, MemberProfileLink, MessageThread, Post, Visibility
+from .models import (
+    Artifact,
+    BugReport,
+    ContactMessage,
+    Event,
+    EventCancellation,
+    FeatureRequest,
+    MemberProfileLink,
+    MessageThread,
+    Post,
+    Visibility,
+)
+from .utils import (
+    calculate_sha256,
+    detect_mime_type,
+    sign_artifact_metadata,
+    verify_artifact_metadata_signature,
+)
 
 
 class VisibilityTests(TestCase):
@@ -618,6 +639,7 @@ class ApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Post.objects.get(title="Pinned").pinned)
 
+
     def test_non_staff_cannot_create_pinned_post(self):
         self.client.login(username="owner", password="testpass")
         response = self.client.post(
@@ -795,3 +817,202 @@ class ApiTests(TestCase):
         response = self.client.post(reverse("send_message", kwargs={"thread_id": thread.pk}), {"body": "Marked the bowings."})
         self.assertEqual(response.status_code, 201)
         self.assertEqual(thread.messages.count(), 1)
+
+
+class ArtifactMetadataTests(TestCase):
+    def setUp(self):
+        self.media_root = tempfile.mkdtemp()
+        self.settings_override = override_settings(
+            ARTIFACT_METADATA_HMAC_KEY="artifact-test-key",
+            MEDIA_ROOT=self.media_root,
+        )
+        self.settings_override.enable()
+        self.owner = User.objects.create_user(username="artifact-owner", password="testpass")
+
+    def tearDown(self):
+        self.settings_override.disable()
+        shutil.rmtree(self.media_root)
+
+    def test_calculate_sha256_streams_uploaded_file(self):
+        content = b"guitar ensemble score"
+        uploaded_file = SimpleUploadedFile("score.txt", content, content_type="text/plain")
+
+        self.assertEqual(calculate_sha256(uploaded_file), hashlib.sha256(content).hexdigest())
+        self.assertEqual(uploaded_file.tell(), 0)
+
+    def test_detect_mime_type_uses_available_detector_or_filename_fallback(self):
+        uploaded_file = SimpleUploadedFile("notes.txt", b"plain text", content_type="text/plain")
+
+        self.assertEqual(detect_mime_type(uploaded_file, "notes.txt"), "text/plain")
+
+    def test_metadata_signature_generation_and_verification(self):
+        signature = sign_artifact_metadata(
+            original_filename="score.pdf",
+            stored_filename="artifacts/2026/06/score.pdf",
+            mime_type="application/pdf",
+            file_size=42,
+            sha256_checksum="a" * 64,
+        )
+        artifact = Artifact(
+            original_filename="score.pdf",
+            stored_filename="artifacts/2026/06/score.pdf",
+            mime_type="application/pdf",
+            file_size=42,
+            sha256_checksum="a" * 64,
+            metadata_signature=signature,
+        )
+
+        self.assertEqual(len(signature), 64)
+        self.assertTrue(verify_artifact_metadata_signature(artifact))
+        self.assertTrue(artifact.verify_metadata_signature())
+
+    def test_metadata_signature_verification_fails_after_checksum_alteration(self):
+        signature = sign_artifact_metadata(
+            original_filename="score.pdf",
+            stored_filename="artifacts/2026/06/score.pdf",
+            mime_type="application/pdf",
+            file_size=42,
+            sha256_checksum="a" * 64,
+        )
+        artifact = Artifact(
+            original_filename="score.pdf",
+            stored_filename="artifacts/2026/06/score.pdf",
+            mime_type="application/pdf",
+            file_size=42,
+            sha256_checksum="b" * 64,
+            metadata_signature=signature,
+        )
+
+        self.assertFalse(verify_artifact_metadata_signature(artifact))
+
+    def test_upload_process_populates_all_metadata(self):
+        content = b"%PDF-1.4 test score"
+        self.client.login(username="artifact-owner", password="testpass")
+
+        response = self.client.post(
+            reverse("upload_artifact"),
+            {
+                "title": "Etude",
+                "description": "Practice score",
+                "artifact_type": Artifact.ArtifactType.PDF,
+                "visibility": Visibility.MEMBERS,
+                "tags": "score,practice",
+                "file": SimpleUploadedFile("etude.pdf", content, content_type="application/pdf"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        artifact = Artifact.objects.get(title="Etude")
+        self.assertEqual(artifact.original_filename, "etude.pdf")
+        self.assertTrue(artifact.stored_filename.startswith("artifacts/"))
+        self.assertEqual(artifact.file_size, len(content))
+        self.assertEqual(artifact.sha256_checksum, hashlib.sha256(content).hexdigest())
+        self.assertTrue(artifact.metadata_signature)
+        self.assertTrue(artifact.verify_metadata_signature())
+        self.assertTrue(artifact.verify_file_integrity())
+        self.assertEqual(response.json()["artifact"]["sha256Checksum"], artifact.sha256_checksum)
+
+    def test_duplicate_sha256_values_are_detectable_but_allowed(self):
+        checksum = "c" * 64
+        first = Artifact.objects.create(
+            owner=self.owner,
+            title="First",
+            file=SimpleUploadedFile("first.txt", b"same"),
+            sha256_checksum=checksum,
+        )
+        second = Artifact.objects.create(
+            owner=self.owner,
+            title="Second",
+            file=SimpleUploadedFile("second.txt", b"same"),
+            sha256_checksum=checksum,
+        )
+
+        self.assertEqual(Artifact.objects.filter(sha256_checksum=checksum).count(), 2)
+        self.assertEqual(list(first.duplicate_artifacts()), [second])
+
+    def test_artifact_search_filters_by_fields_and_links_to_file(self):
+        matching = Artifact.objects.create(
+            owner=self.owner,
+            title="Villa-Lobos Etude",
+            description="Score for rehearsal",
+            artifact_type=Artifact.ArtifactType.PDF,
+            visibility=Visibility.PUBLIC,
+            tags="score,etude",
+            file="artifacts/villa-lobos.pdf",
+            original_filename="villa-lobos.pdf",
+            stored_filename="artifacts/villa-lobos.pdf",
+            mime_type="application/pdf",
+            file_size=128,
+            sha256_checksum="d" * 64,
+        )
+        Artifact.objects.create(
+            owner=self.owner,
+            title="Audio Reference",
+            artifact_type=Artifact.ArtifactType.AUDIO,
+            visibility=Visibility.PUBLIC,
+            tags="audio",
+            file="artifacts/reference.mp3",
+            sha256_checksum="e" * 64,
+        )
+
+        response = self.client.get(
+            reverse("artifact_search"),
+            {"title": "Villa", "tags": "etude", "artifact_type": Artifact.ArtifactType.PDF},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, matching.title)
+        self.assertContains(response, matching.file.url)
+        self.assertNotContains(response, "Audio Reference")
+
+    def test_artifact_search_form_excludes_internal_metadata_fields(self):
+        response = self.client.get(reverse("artifact_search"))
+
+        self.assertContains(response, "Title")
+        self.assertContains(response, "Description")
+        self.assertContains(response, "Tags")
+        self.assertNotContains(response, "Artifact ID")
+        self.assertNotContains(response, "File path")
+        self.assertNotContains(response, "Original filename")
+        self.assertNotContains(response, "Stored filename")
+        self.assertNotContains(response, "Mime type")
+        self.assertNotContains(response, "Minimum file size")
+        self.assertNotContains(response, "Maximum file size")
+        self.assertNotContains(response, "Sha256 checksum")
+        self.assertNotContains(response, "Metadata signature")
+        self.assertNotContains(response, "Signature algorithm")
+
+    def test_artifact_search_respects_visibility(self):
+        Artifact.objects.create(
+            owner=self.owner,
+            title="Members Score",
+            visibility=Visibility.MEMBERS,
+            file="artifacts/members-score.pdf",
+            sha256_checksum="f" * 64,
+        )
+
+        anonymous_response = self.client.get(reverse("artifact_search"), {"title": "Members"})
+        self.assertNotContains(anonymous_response, "Members Score")
+
+        self.client.login(username="artifact-owner", password="testpass")
+        member_response = self.client.get(reverse("artifact_search"), {"title": "Members"})
+        self.assertContains(member_response, "Members Score")
+
+    def test_artifact_search_paginates_results_at_25(self):
+        for index in range(30):
+            Artifact.objects.create(
+                owner=self.owner,
+                title=f"Batch Artifact {index:02d}",
+                visibility=Visibility.PUBLIC,
+                tags="batch",
+                file=f"artifacts/batch-{index:02d}.pdf",
+                sha256_checksum=f"{index:064x}"[-64:],
+            )
+
+        response = self.client.get(reverse("artifact_search"), {"tags": "batch"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["page_obj"].paginator.count, 30)
+        self.assertEqual(len(response.context["page_obj"]), 25)
+        self.assertContains(response, "Page 1 of 2")
+        self.assertContains(response, "page=2")

@@ -38,9 +38,30 @@ class PostAdmin(admin.ModelAdmin):
 
 @admin.register(Artifact)
 class ArtifactAdmin(admin.ModelAdmin):
-    list_display = ("title", "artifact_type", "owner", "visibility", "created_at")
-    list_filter = ("artifact_type", "visibility", "created_at")
-    search_fields = ("title", "description", "tags", "owner__username")
+    list_display = (
+        "title",
+        "artifact_type",
+        "owner",
+        "visibility",
+        "original_filename",
+        "stored_filename",
+        "mime_type",
+        "file_size",
+        "sha256_checksum",
+        "signature_algorithm",
+        "created_at",
+    )
+    list_filter = ("artifact_type", "visibility", "mime_type", "signature_algorithm", "created_at")
+    search_fields = (
+        "title",
+        "description",
+        "tags",
+        "owner__username",
+        "original_filename",
+        "stored_filename",
+        "sha256_checksum",
+    )
+    readonly_fields = ("sha256_checksum", "metadata_signature")
     filter_horizontal = ("visible_to_groups", "visible_to_users")
 
 
