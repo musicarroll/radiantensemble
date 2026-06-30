@@ -11,7 +11,7 @@ EMAIL_PORT = None
 EMAIL_USE_TLS = None
 EMAIL_HOST_USER = ""
 EMAIL_HOST_PASSWORD = ""
-DEFAULT_FROM_EMAIL = "Radiant Ensemble <mcarroll@radiantensemble.com>"
+DEFAULT_FROM_EMAIL = "Radiantensemble.com Admin <mcarroll@radiantensemble.com>"
 SERVER_EMAIL = "mcarroll@radiantensemble.com"
 
 NEXTCLOUD_BASE_URL = "https://nextcloud.radiantensemble.com"

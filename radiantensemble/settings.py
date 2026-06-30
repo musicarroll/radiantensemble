@@ -218,7 +218,7 @@ EMAIL_HOST_USER = _config_value("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = _config_value("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = _config_value(
     "DEFAULT_FROM_EMAIL",
-    "Radiant Ensemble <mcarroll@radiantensemble.com>",
+    "Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
 )
 SERVER_EMAIL = _config_value("SERVER_EMAIL", "mcarroll@radiantensemble.com")
 

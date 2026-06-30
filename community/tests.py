@@ -91,7 +91,7 @@ class PublicPageTests(TestCase):
     @override_settings(
         CF_TURNSTILE_ENABLED=False,
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-        DEFAULT_FROM_EMAIL="Radiant Ensemble <mcarroll@radiantensemble.com>",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
         SERVER_EMAIL="mcarroll@radiantensemble.com",
     )
     def test_signup_notifies_active_users(self):
@@ -679,7 +679,7 @@ class ApiTests(TestCase):
 
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-        DEFAULT_FROM_EMAIL="Radiant Ensemble <mcarroll@radiantensemble.com>",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
         SERVER_EMAIL="mcarroll@radiantensemble.com",
     )
     def test_create_post_notifies_active_users(self):
@@ -859,7 +859,7 @@ class ApiTests(TestCase):
 
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-        DEFAULT_FROM_EMAIL="Radiant Ensemble <mcarroll@radiantensemble.com>",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
         SERVER_EMAIL="mcarroll@radiantensemble.com",
     )
     def test_create_direct_thread_initial_message_notifies_recipient_only(self):
@@ -917,7 +917,7 @@ class ApiTests(TestCase):
 
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-        DEFAULT_FROM_EMAIL="Radiant Ensemble <mcarroll@radiantensemble.com>",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
         SERVER_EMAIL="mcarroll@radiantensemble.com",
     )
     def test_send_message_notifies_all_other_thread_participants(self):
