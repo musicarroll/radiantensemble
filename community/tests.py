@@ -78,6 +78,7 @@ class PublicPageTests(TestCase):
             reverse("signup"),
             {
                 "username": "prospective",
+                "email": "prospective@example.com",
                 "password1": "safe-test-pass-123",
                 "password2": "safe-test-pass-123",
             },
@@ -86,7 +87,23 @@ class PublicPageTests(TestCase):
         self.assertContains(response, "Account Awaiting Approval")
         user = User.objects.get(username="prospective")
         self.assertFalse(user.is_active)
+        self.assertEqual(user.email, "prospective@example.com")
         self.assertFalse(self.client.login(username="prospective", password="safe-test-pass-123"))
+
+    @override_settings(CF_TURNSTILE_ENABLED=False)
+    def test_signup_requires_email(self):
+        response = self.client.post(
+            reverse("signup"),
+            {
+                "username": "prospective",
+                "password1": "safe-test-pass-123",
+                "password2": "safe-test-pass-123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "This field is required.")
+        self.assertFalse(User.objects.filter(username="prospective").exists())
 
     @override_settings(
         CF_TURNSTILE_ENABLED=False,
@@ -111,6 +128,7 @@ class PublicPageTests(TestCase):
             reverse("signup"),
             {
                 "username": "prospective",
+                "email": "prospective@example.com",
                 "password1": "safe-test-pass-123",
                 "password2": "safe-test-pass-123",
             },
@@ -131,6 +149,7 @@ class PublicPageTests(TestCase):
             reverse("signup"),
             {
                 "username": "prospective",
+                "email": "prospective@example.com",
                 "password1": "safe-test-pass-123",
                 "password2": "safe-test-pass-123",
             },

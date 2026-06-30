@@ -7,9 +7,11 @@ from .models import Artifact, BugReport, ContactMessage, Event, FeatureRequest, 
 
 
 class PendingUserCreationForm(UserCreationForm):
+    email = forms.EmailField(required=True)
+
     class Meta:
         model = User
-        fields = ["username"]
+        fields = ["username", "email"]
 
 
 class ContactForm(forms.ModelForm):
