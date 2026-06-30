@@ -35,6 +35,7 @@ from .models import (
     Post,
     Visibility,
 )
+from .notifications import notify_direct_message, notify_new_home_post, notify_new_signup
 from .utils import calculate_sha256, detect_mime_type, sign_artifact_metadata
 
 
@@ -64,6 +65,7 @@ def signup(request):
             user = form.save(commit=False)
             user.is_active = False
             user.save()
+            notify_new_signup(request, user)
             return render(request, "community/signup_pending.html", {"new_user": user})
     return render(
         request,
@@ -579,7 +581,8 @@ def create_direct_thread(request):
     thread.participants.add(request.user, recipient)
     body = request.POST.get("body", "").strip()
     if body:
-        Message.objects.create(thread=thread, sender=request.user, body=body)
+        message = Message.objects.create(thread=thread, sender=request.user, body=body)
+        notify_direct_message(request, message)
     return JsonResponse({"thread": _thread_payload(thread)}, status=201)
 
 
@@ -593,6 +596,7 @@ def send_message(request, thread_id):
         return JsonResponse({"error": "Message text or an attachment is required."}, status=400)
     message = Message.objects.create(thread=thread, sender=request.user, body=body, attachment=attachment)
     thread.save(update_fields=["updated_at"])
+    notify_direct_message(request, message)
     return JsonResponse({"message": _message_payload(message), "thread": _thread_payload(thread)}, status=201)
 
 
@@ -613,6 +617,7 @@ def create_post(request):
         visibility=visibility,
         pinned=request.user.is_staff and request.POST.get("pinned") == "true",
     )
+    notify_new_home_post(request, post)
     return JsonResponse({"post": _post_payload(post)}, status=201)
 
 

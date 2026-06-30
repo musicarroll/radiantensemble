@@ -36,6 +36,14 @@ def _load_local_config():
         "CF_TURNSTILE_ENABLED": getattr(module, "CF_TURNSTILE_ENABLED", True),
         "DJANGO_DEBUG": getattr(module, "DJANGO_DEBUG", None),
         "DJANGO_SECRET_KEY": getattr(module, "DJANGO_SECRET_KEY", ""),
+        "EMAIL_BACKEND": getattr(module, "EMAIL_BACKEND", ""),
+        "EMAIL_HOST": getattr(module, "EMAIL_HOST", ""),
+        "EMAIL_PORT": getattr(module, "EMAIL_PORT", None),
+        "EMAIL_USE_TLS": getattr(module, "EMAIL_USE_TLS", None),
+        "EMAIL_HOST_USER": getattr(module, "EMAIL_HOST_USER", ""),
+        "EMAIL_HOST_PASSWORD": getattr(module, "EMAIL_HOST_PASSWORD", ""),
+        "DEFAULT_FROM_EMAIL": getattr(module, "DEFAULT_FROM_EMAIL", ""),
+        "SERVER_EMAIL": getattr(module, "SERVER_EMAIL", ""),
     }
 
 
@@ -194,6 +202,25 @@ LOGIN_URL = 'login'
 CF_TURNSTILE_SITE_KEY = _LOCAL_CONFIG.get("CF_TURNSTILE_SITE_KEY", "")
 CF_TURNSTILE_SECRET_KEY = _LOCAL_CONFIG.get("CF_TURNSTILE_SECRET_KEY", "")
 CF_TURNSTILE_ENABLED = bool(_LOCAL_CONFIG.get("CF_TURNSTILE_ENABLED", True))
+
+EMAIL_BACKEND = _config_value(
+    "EMAIL_BACKEND",
+    (
+        "django.core.mail.backends.console.EmailBackend"
+        if DEBUG
+        else "django.core.mail.backends.smtp.EmailBackend"
+    ),
+)
+EMAIL_HOST = _config_value("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(_config_value("EMAIL_PORT", 25))
+EMAIL_USE_TLS = _config_bool("EMAIL_USE_TLS", False)
+EMAIL_HOST_USER = _config_value("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = _config_value("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = _config_value(
+    "DEFAULT_FROM_EMAIL",
+    "Radiant Ensemble <mcarroll@radiantensemble.com>",
+)
+SERVER_EMAIL = _config_value("SERVER_EMAIL", "mcarroll@radiantensemble.com")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

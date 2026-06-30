@@ -1,6 +1,7 @@
 import hashlib
 import shutil
 import tempfile
+from django.core import mail
 from django.contrib.auth.models import Group, User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -86,6 +87,43 @@ class PublicPageTests(TestCase):
         user = User.objects.get(username="prospective")
         self.assertFalse(user.is_active)
         self.assertFalse(self.client.login(username="prospective", password="safe-test-pass-123"))
+
+    @override_settings(
+        CF_TURNSTILE_ENABLED=False,
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiant Ensemble <mcarroll@radiantensemble.com>",
+        SERVER_EMAIL="mcarroll@radiantensemble.com",
+    )
+    def test_signup_notifies_active_users(self):
+        active = User.objects.create_user(
+            username="active-admin",
+            password="testpass",
+            email="active@example.com",
+        )
+        inactive = User.objects.create_user(
+            username="inactive-admin",
+            password="testpass",
+            email="inactive@example.com",
+            is_active=False,
+        )
+
+        response = self.client.post(
+            reverse("signup"),
+            {
+                "username": "prospective",
+                "password1": "safe-test-pass-123",
+                "password2": "safe-test-pass-123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Radiant Ensemble new user signup")
+        self.assertIn("prospective", message.body)
+        self.assertIn("awaiting approval", message.body)
+        self.assertIn(active.email, message.bcc)
+        self.assertNotIn(inactive.email, message.bcc)
 
     @override_settings(CF_TURNSTILE_ENABLED=True, CF_TURNSTILE_SECRET_KEY="")
     def test_signup_requires_turnstile_configuration_when_enabled(self):
@@ -602,7 +640,7 @@ class WorkItemTests(TestCase):
 
 class ApiTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="owner", password="testpass")
+        self.owner = User.objects.create_user(username="owner", password="testpass", email="owner@example.com")
         Post.objects.create(owner=self.owner, title="Hello", body="Members", visibility=Visibility.MEMBERS)
         Post.objects.create(owner=self.owner, title="Public", body="Everyone", visibility=Visibility.PUBLIC)
 
@@ -638,6 +676,42 @@ class ApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Post.objects.get(title="Pinned").pinned)
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiant Ensemble <mcarroll@radiantensemble.com>",
+        SERVER_EMAIL="mcarroll@radiantensemble.com",
+    )
+    def test_create_post_notifies_active_users(self):
+        member = User.objects.create_user(
+            username="member-with-profile-email",
+            password="testpass",
+        )
+        member.member_profile.email = "profile-member@example.com"
+        member.member_profile.save(update_fields=["email"])
+        inactive = User.objects.create_user(
+            username="inactive-email",
+            password="testpass",
+            email="inactive@example.com",
+            is_active=False,
+        )
+        self.client.login(username="owner", password="testpass")
+
+        response = self.client.post(
+            reverse("create_post"),
+            {"title": "Rehearsal notes", "body": "Bring the new score.", "visibility": Visibility.MEMBERS},
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Radiant Ensemble new home post")
+        self.assertIn("owner", message.body)
+        self.assertIn("Rehearsal notes", message.body)
+        self.assertIn("Bring the new score.", message.body)
+        self.assertIn(self.owner.email, message.bcc)
+        self.assertIn("profile-member@example.com", message.bcc)
+        self.assertNotIn(inactive.email, message.bcc)
 
 
     def test_non_staff_cannot_create_pinned_post(self):
@@ -783,6 +857,29 @@ class ApiTests(TestCase):
         self.assertEqual(thread.participants.count(), 2)
         self.assertEqual(thread.messages.count(), 1)
 
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiant Ensemble <mcarroll@radiantensemble.com>",
+        SERVER_EMAIL="mcarroll@radiantensemble.com",
+    )
+    def test_create_direct_thread_initial_message_notifies_recipient_only(self):
+        recipient = User.objects.create_user(username="recipient", password="testpass", email="recipient@example.com")
+        self.client.login(username="owner", password="testpass")
+
+        response = self.client.post(
+            reverse("create_direct_thread"),
+            {"recipient_id": recipient.pk, "body": "Can you rehearse tonight?"},
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Radiant Ensemble new direct message")
+        self.assertIn("owner", message.body)
+        self.assertIn("Can you rehearse tonight?", message.body)
+        self.assertIn(recipient.email, message.bcc)
+        self.assertNotIn(self.owner.email, message.bcc)
+
     def test_thread_detail_limited_to_participants(self):
         recipient = User.objects.create_user(username="recipient", password="testpass")
         outsider = User.objects.create_user(username="outsider", password="testpass")
@@ -817,6 +914,39 @@ class ApiTests(TestCase):
         response = self.client.post(reverse("send_message", kwargs={"thread_id": thread.pk}), {"body": "Marked the bowings."})
         self.assertEqual(response.status_code, 201)
         self.assertEqual(thread.messages.count(), 1)
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiant Ensemble <mcarroll@radiantensemble.com>",
+        SERVER_EMAIL="mcarroll@radiantensemble.com",
+    )
+    def test_send_message_notifies_all_other_thread_participants(self):
+        recipient = User.objects.create_user(username="recipient", password="testpass", email="recipient@example.com")
+        profile_recipient = User.objects.create_user(username="profile-recipient", password="testpass")
+        profile_recipient.member_profile.email = "profile-recipient@example.com"
+        profile_recipient.member_profile.save(update_fields=["email"])
+        inactive = User.objects.create_user(
+            username="inactive-recipient",
+            password="testpass",
+            email="inactive@example.com",
+            is_active=False,
+        )
+        thread = MessageThread.objects.create(title="Section chat", is_group_thread=True)
+        thread.participants.add(self.owner, recipient, profile_recipient, inactive)
+        self.client.login(username="owner", password="testpass")
+
+        response = self.client.post(reverse("send_message", kwargs={"thread_id": thread.pk}), {"body": "Marked the bowings."})
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Radiant Ensemble new direct message")
+        self.assertIn("Section chat", message.body)
+        self.assertIn("Marked the bowings.", message.body)
+        self.assertIn(recipient.email, message.bcc)
+        self.assertIn("profile-recipient@example.com", message.bcc)
+        self.assertNotIn(self.owner.email, message.bcc)
+        self.assertNotIn(inactive.email, message.bcc)
 
 
 class ArtifactMetadataTests(TestCase):
