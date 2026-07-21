@@ -438,6 +438,73 @@ def _artifact_payload(artifact):
     }
 
 
+def _artifact_metadata_for_upload(uploaded_file):
+    original_filename = uploaded_file.name
+    sha256_checksum = calculate_sha256(uploaded_file)
+    mime_type = detect_mime_type(uploaded_file, original_filename)
+    file_size = uploaded_file.size or 0
+    try:
+        uploaded_file.seek(0)
+    except (AttributeError, OSError):
+        pass
+    return original_filename, sha256_checksum, mime_type, file_size
+
+
+def _sign_artifact(artifact):
+    artifact.metadata_signature = sign_artifact_metadata(
+        original_filename=artifact.original_filename,
+        stored_filename=artifact.stored_filename,
+        mime_type=artifact.mime_type,
+        file_size=artifact.file_size,
+        sha256_checksum=artifact.sha256_checksum,
+    )
+
+
+def _update_artifact_manual_metadata(artifact, post_data, *, uploaded_file=None, require_title=False):
+    if "title" in post_data or require_title:
+        title = post_data.get("title", "").strip()
+        if not title and uploaded_file:
+            title = uploaded_file.name
+        if not title:
+            return "Title is required."
+        artifact.title = title
+    if "description" in post_data:
+        artifact.description = post_data.get("description", "")
+    if "artifact_type" in post_data:
+        artifact_type = post_data.get("artifact_type", Artifact.ArtifactType.OTHER)
+        if artifact_type not in Artifact.ArtifactType.values:
+            return "Invalid artifact type."
+        artifact.artifact_type = artifact_type
+    if "visibility" in post_data:
+        visibility = post_data.get("visibility", Visibility.MEMBERS)
+        if visibility not in Visibility.values:
+            return "Invalid visibility value."
+        artifact.visibility = visibility
+    if "tags" in post_data:
+        artifact.tags = post_data.get("tags", "")
+    return ""
+
+
+def _replace_artifact_file(artifact, uploaded_file):
+    original_filename, sha256_checksum, mime_type, file_size = _artifact_metadata_for_upload(uploaded_file)
+    old_stored_filename = artifact.stored_filename or artifact.file.name
+
+    artifact.original_filename = original_filename
+    artifact.mime_type = mime_type
+    artifact.file_size = file_size
+    artifact.sha256_checksum = sha256_checksum
+
+    if old_stored_filename:
+        storage = artifact.file.storage
+        if storage.exists(old_stored_filename):
+            storage.delete(old_stored_filename)
+        artifact.file.name = storage.save(old_stored_filename, uploaded_file)
+    else:
+        artifact.file.save(uploaded_file.name, uploaded_file, save=False)
+    artifact.stored_filename = artifact.file.name
+    _sign_artifact(artifact)
+
+
 def _message_payload(message):
     return {
         "id": message.pk,
@@ -681,37 +748,41 @@ def upload_artifact(request):
     # 6. capture final stored name
     # 7. sign harvested metadata
     # 8. save metadata on the model
-    original_filename = uploaded_file.name
-    sha256_checksum = calculate_sha256(uploaded_file)
-    mime_type = detect_mime_type(uploaded_file, original_filename)
-    file_size = uploaded_file.size or 0
-    try:
-        uploaded_file.seek(0)
-    except (AttributeError, OSError):
-        pass
-
     artifact = Artifact(
         owner=request.user,
-        title=request.POST.get("title") or uploaded_file.name,
-        description=request.POST.get("description", ""),
-        artifact_type=request.POST.get("artifact_type", Artifact.ArtifactType.OTHER),
-        visibility=request.POST.get("visibility", Visibility.MEMBERS),
-        tags=request.POST.get("tags", ""),
-        original_filename=original_filename,
-        mime_type=mime_type,
-        file_size=file_size,
-        sha256_checksum=sha256_checksum,
     )
+    metadata_error = _update_artifact_manual_metadata(artifact, request.POST, uploaded_file=uploaded_file, require_title=True)
+    if metadata_error:
+        return JsonResponse({"error": metadata_error}, status=400)
+
+    original_filename, sha256_checksum, mime_type, file_size = _artifact_metadata_for_upload(uploaded_file)
+    artifact.original_filename = original_filename
+    artifact.mime_type = mime_type
+    artifact.file_size = file_size
+    artifact.sha256_checksum = sha256_checksum
     artifact.file.save(uploaded_file.name, uploaded_file, save=False)
     artifact.stored_filename = artifact.file.name
-    artifact.metadata_signature = sign_artifact_metadata(
-        original_filename=artifact.original_filename,
-        stored_filename=artifact.stored_filename,
-        mime_type=artifact.mime_type,
-        file_size=artifact.file_size,
-        sha256_checksum=artifact.sha256_checksum,
-    )
+    _sign_artifact(artifact)
     artifact.save()
     return JsonResponse({"artifact": _artifact_payload(artifact)}, status=201)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_artifact(request, artifact_id):
+    artifact = get_object_or_404(Artifact, pk=artifact_id)
+    if artifact.owner != request.user and not request.user.is_staff:
+        return JsonResponse({"error": "You can only update artifacts you uploaded."}, status=403)
+
+    metadata_error = _update_artifact_manual_metadata(artifact, request.POST)
+    if metadata_error:
+        return JsonResponse({"error": metadata_error}, status=400)
+
+    uploaded_file = request.FILES.get("file")
+    if uploaded_file:
+        _replace_artifact_file(artifact, uploaded_file)
+
+    artifact.save()
+    return JsonResponse({"artifact": _artifact_payload(artifact)})
 
 # Create your views here.

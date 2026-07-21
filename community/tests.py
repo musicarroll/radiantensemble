@@ -1061,6 +1061,127 @@ class ArtifactMetadataTests(TestCase):
         self.assertTrue(artifact.verify_file_integrity())
         self.assertEqual(response.json()["artifact"]["sha256Checksum"], artifact.sha256_checksum)
 
+    def test_owner_can_replace_artifact_file_without_changing_manual_metadata(self):
+        original_content = b"original score"
+        replacement_content = b"replacement score"
+        self.client.login(username="artifact-owner", password="testpass")
+        upload_response = self.client.post(
+            reverse("upload_artifact"),
+            {
+                "title": "Etude",
+                "description": "Practice score",
+                "artifact_type": Artifact.ArtifactType.PDF,
+                "visibility": Visibility.MEMBERS,
+                "tags": "score,practice",
+                "file": SimpleUploadedFile("etude.pdf", original_content, content_type="application/pdf"),
+            },
+        )
+        artifact = Artifact.objects.get(pk=upload_response.json()["artifact"]["id"])
+        original_stored_filename = artifact.stored_filename
+
+        response = self.client.post(
+            reverse("update_artifact", args=[artifact.pk]),
+            {"file": SimpleUploadedFile("etude-v2.txt", replacement_content, content_type="text/plain")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        artifact.refresh_from_db()
+        self.assertEqual(artifact.title, "Etude")
+        self.assertEqual(artifact.description, "Practice score")
+        self.assertEqual(artifact.artifact_type, Artifact.ArtifactType.PDF)
+        self.assertEqual(artifact.visibility, Visibility.MEMBERS)
+        self.assertEqual(artifact.tags, "score,practice")
+        self.assertEqual(artifact.original_filename, "etude-v2.txt")
+        self.assertEqual(artifact.stored_filename, original_stored_filename)
+        self.assertEqual(artifact.file_size, len(replacement_content))
+        self.assertEqual(artifact.sha256_checksum, hashlib.sha256(replacement_content).hexdigest())
+        self.assertTrue(artifact.verify_metadata_signature())
+        self.assertTrue(artifact.verify_file_integrity())
+        with artifact.file.open("rb") as file_obj:
+            self.assertEqual(file_obj.read(), replacement_content)
+
+    def test_owner_can_update_artifact_manual_metadata_without_replacing_file(self):
+        self.client.login(username="artifact-owner", password="testpass")
+        upload_response = self.client.post(
+            reverse("upload_artifact"),
+            {
+                "title": "Original",
+                "description": "Original description",
+                "artifact_type": Artifact.ArtifactType.OTHER,
+                "visibility": Visibility.MEMBERS,
+                "tags": "old",
+                "file": SimpleUploadedFile("notes.txt", b"notes", content_type="text/plain"),
+            },
+        )
+        artifact = Artifact.objects.get(pk=upload_response.json()["artifact"]["id"])
+        original_checksum = artifact.sha256_checksum
+        original_signature = artifact.metadata_signature
+
+        response = self.client.post(
+            reverse("update_artifact", args=[artifact.pk]),
+            {
+                "title": "Updated",
+                "description": "Updated description",
+                "artifact_type": Artifact.ArtifactType.AUDIO,
+                "visibility": Visibility.PUBLIC,
+                "tags": "new,tags",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        artifact.refresh_from_db()
+        self.assertEqual(artifact.title, "Updated")
+        self.assertEqual(artifact.description, "Updated description")
+        self.assertEqual(artifact.artifact_type, Artifact.ArtifactType.AUDIO)
+        self.assertEqual(artifact.visibility, Visibility.PUBLIC)
+        self.assertEqual(artifact.tags, "new,tags")
+        self.assertEqual(artifact.sha256_checksum, original_checksum)
+        self.assertEqual(artifact.metadata_signature, original_signature)
+        self.assertTrue(artifact.verify_metadata_signature())
+
+    def test_non_owner_cannot_update_artifact(self):
+        other_user = User.objects.create_user(username="other-artifact-user", password="testpass")
+        self.client.login(username="artifact-owner", password="testpass")
+        upload_response = self.client.post(
+            reverse("upload_artifact"),
+            {
+                "title": "Owned",
+                "file": SimpleUploadedFile("owned.txt", b"owned", content_type="text/plain"),
+            },
+        )
+        artifact = Artifact.objects.get(pk=upload_response.json()["artifact"]["id"])
+        original_checksum = artifact.sha256_checksum
+
+        self.client.login(username=other_user.username, password="testpass")
+        response = self.client.post(
+            reverse("update_artifact", args=[artifact.pk]),
+            {"title": "Changed by someone else"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        artifact.refresh_from_db()
+        self.assertEqual(artifact.title, "Owned")
+        self.assertEqual(artifact.sha256_checksum, original_checksum)
+
+    def test_staff_can_update_artifact_owned_by_someone_else(self):
+        staff_user = User.objects.create_user(username="artifact-admin", password="testpass", is_staff=True)
+        self.client.login(username="artifact-owner", password="testpass")
+        upload_response = self.client.post(
+            reverse("upload_artifact"),
+            {
+                "title": "Owned",
+                "file": SimpleUploadedFile("owned.txt", b"owned", content_type="text/plain"),
+            },
+        )
+        artifact = Artifact.objects.get(pk=upload_response.json()["artifact"]["id"])
+
+        self.client.login(username=staff_user.username, password="testpass")
+        response = self.client.post(reverse("update_artifact", args=[artifact.pk]), {"title": "Admin changed"})
+
+        self.assertEqual(response.status_code, 200)
+        artifact.refresh_from_db()
+        self.assertEqual(artifact.title, "Admin changed")
+
     def test_duplicate_sha256_values_are_detectable_but_allowed(self):
         checksum = "c" * 64
         first = Artifact.objects.create(

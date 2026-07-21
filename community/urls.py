@@ -37,4 +37,5 @@ urlpatterns = [
     path("api/posts/<int:post_id>/delete/", views.delete_post, name="delete_post"),
     path("api/posts/<int:post_id>/pin/", views.pin_post, name="pin_post"),
     path("api/artifacts/upload/", views.upload_artifact, name="upload_artifact"),
+    path("api/artifacts/<int:artifact_id>/", views.update_artifact, name="update_artifact"),
 ]

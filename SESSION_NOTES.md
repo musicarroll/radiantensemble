@@ -1,5 +1,12 @@
 # Session Notes
 
+## 2026-07-21 Artifact Replacement And Metadata Editing
+
+- Added `POST /api/artifacts/<artifact_id>/` so an artifact owner or staff user can replace the uploaded file without creating a duplicate artifact record.
+- Replacement uploads preserve manually entered metadata unless new metadata fields are submitted, while regenerating original filename, MIME type, file size, SHA-256 checksum, and metadata signature.
+- Added dashboard controls for eligible users to edit artifact title, description, type, visibility, tags, and optionally choose a replacement file.
+- Added tests for owner replacement, metadata-only edits, non-owner denial, and staff updates.
+
 ## 2026-06-02
 
 - Started a new Django 5.0 project for `radiantensemble.com` in `/home/mcarroll/Documents/python/radiantensemble/website`.

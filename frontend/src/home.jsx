@@ -11,7 +11,14 @@ const api = async (url, options = {}) => {
     ...options
   });
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    let message = `Request failed: ${response.status}`;
+    try {
+      const data = await response.json();
+      message = data.error || message;
+    } catch (_error) {
+      // Keep the HTTP status fallback when the response body is not JSON.
+    }
+    throw new Error(message);
   }
   return response.json();
 };
@@ -413,6 +420,98 @@ function ArtifactUpload({ authenticated, onUploaded }) {
   );
 }
 
+function ArtifactUpdateForm({ artifact, onUpdated, onCancel }) {
+  const [title, setTitle] = useState(artifact.title);
+  const [description, setDescription] = useState(artifact.description);
+  const [artifactType, setArtifactType] = useState(artifact.artifactType);
+  const [visibility, setVisibility] = useState(artifact.visibility);
+  const [tags, setTags] = useState(artifact.tags.join(", "));
+  const [file, setFile] = useState(null);
+  const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!title.trim()) {
+      setStatus("Title is required.");
+      return;
+    }
+
+    const form = new FormData();
+    form.append("title", title);
+    form.append("description", description);
+    form.append("artifact_type", artifactType);
+    form.append("visibility", visibility);
+    form.append("tags", tags);
+    if (file) {
+      form.append("file", file);
+    }
+
+    try {
+      setSaving(true);
+      setStatus("");
+      await api(`/api/artifacts/${artifact.id}/`, { method: "POST", body: form });
+      await onUpdated();
+      onCancel();
+    } catch (error) {
+      setStatus(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form className="artifact-update-form" onSubmit={submit}>
+      <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title" />
+      <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows="2" placeholder="Short description" />
+      <div className="split-fields">
+        <select value={artifactType} onChange={(event) => setArtifactType(event.target.value)}>
+          <option value="pdf">PDF</option>
+          <option value="audio">Audio</option>
+          <option value="image">Image</option>
+          <option value="artwork">Artwork</option>
+          <option value="other">Other</option>
+        </select>
+        <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
+          <option value="members">Members</option>
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+      <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Tags, comma-separated" />
+      <label className="file-replace-field">
+        <span>Replacement file</span>
+        <input type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+      </label>
+      <div className="composer-actions">
+        <button className="secondary-button" type="button" onClick={onCancel} disabled={saving}>Cancel</button>
+        <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving..." : "Save"}</button>
+      </div>
+      {status && <p className="meta">{status}</p>}
+    </form>
+  );
+}
+
+function ArtifactCard({ artifact, me, onUpdated }) {
+  const [editing, setEditing] = useState(false);
+  const canEdit = me?.authenticated && (me.user.isStaff || me.user.id === artifact.owner.id);
+
+  return (
+    <article className="artifact">
+      <div className="artifact-header">
+        <strong><a href={artifact.url}>{artifact.title}</a></strong>
+        {canEdit && !editing && (
+          <button className="text-button" type="button" onClick={() => setEditing(true)}>Edit</button>
+        )}
+      </div>
+      <p>{artifact.artifactType} · {artifact.visibility}</p>
+      {editing && (
+        <ArtifactUpdateForm artifact={artifact} onUpdated={onUpdated} onCancel={() => setEditing(false)} />
+      )}
+    </article>
+  );
+}
+
 function MessagingWidget({ authenticated, members, me, threads, onChanged }) {
   const [recipientId, setRecipientId] = useState("");
   const [newThreadBody, setNewThreadBody] = useState("");
@@ -492,10 +591,7 @@ function RightPanel({ artifacts, threads, authenticated, members, me, onArtifact
         <a className="artifact-search-link" href="/artifacts/search/">Search artifacts</a>
         <div className="artifact-list">
           {recentArtifacts.map((artifact) => (
-            <article className="artifact" key={artifact.id}>
-              <strong><a href={artifact.url}>{artifact.title}</a></strong>
-              <p>{artifact.artifactType} · {artifact.visibility}</p>
-            </article>
+            <ArtifactCard artifact={artifact} me={me} onUpdated={onArtifactUploaded} key={artifact.id} />
           ))}
           {!recentArtifacts.length && <p className="meta">Shared PDFs, audio, images, and artwork will appear here.</p>}
         </div>

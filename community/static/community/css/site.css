@@ -503,6 +503,9 @@ main {
 .upload-form textarea,
 .upload-form input,
 .upload-form select,
+.artifact-update-form textarea,
+.artifact-update-form input,
+.artifact-update-form select,
 .message-form textarea,
 .message-form input,
 .message-form select {
@@ -517,6 +520,7 @@ main {
 .composer-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
   margin-top: 0.7rem;
 }
 
@@ -584,6 +588,29 @@ main {
 
 .artifact-search-link:hover {
   text-decoration: underline;
+}
+
+.artifact-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.artifact-update-form {
+  margin-top: 0.75rem;
+}
+
+.file-replace-field {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+.file-replace-field span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .message-form {
