@@ -1,7 +1,12 @@
+import logging
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMessage, send_mail
 from django.urls import reverse
+
+
+logger = logging.getLogger(__name__)
 
 
 def active_user_notification_recipients():
@@ -70,7 +75,17 @@ def notify_new_signup(request, user):
         f"Display name: {display_name}\n"
         f"Admin review link: {admin_url}\n"
     )
-    return send_active_user_notification("Radiant Ensemble new user signup", body)
+    try:
+        return send_mail(
+            subject="Radiant Ensemble new user signup",
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.ADMIN_SIGNUP_NOTIFICATION_EMAIL],
+            fail_silently=True,
+        )
+    except Exception:
+        logger.exception("Failed to send new user signup email.")
+        return 0
 
 
 def notify_new_home_post(request, post):

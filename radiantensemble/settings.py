@@ -44,6 +44,7 @@ def _load_local_config():
         "EMAIL_HOST_PASSWORD": getattr(module, "EMAIL_HOST_PASSWORD", ""),
         "DEFAULT_FROM_EMAIL": getattr(module, "DEFAULT_FROM_EMAIL", ""),
         "SERVER_EMAIL": getattr(module, "SERVER_EMAIL", ""),
+        "ADMIN_SIGNUP_NOTIFICATION_EMAIL": getattr(module, "ADMIN_SIGNUP_NOTIFICATION_EMAIL", ""),
     }
 
 
@@ -221,6 +222,10 @@ DEFAULT_FROM_EMAIL = _config_value(
     "Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
 )
 SERVER_EMAIL = _config_value("SERVER_EMAIL", "mcarroll@radiantensemble.com")
+ADMIN_SIGNUP_NOTIFICATION_EMAIL = _config_value(
+    "ADMIN_SIGNUP_NOTIFICATION_EMAIL",
+    "musicarroll@gmail.com",
+)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

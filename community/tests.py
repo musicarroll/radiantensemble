@@ -110,20 +110,9 @@ class PublicPageTests(TestCase):
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
         SERVER_EMAIL="mcarroll@radiantensemble.com",
+        ADMIN_SIGNUP_NOTIFICATION_EMAIL="musicarroll@gmail.com",
     )
-    def test_signup_notifies_active_users(self):
-        active = User.objects.create_user(
-            username="active-admin",
-            password="testpass",
-            email="active@example.com",
-        )
-        inactive = User.objects.create_user(
-            username="inactive-admin",
-            password="testpass",
-            email="inactive@example.com",
-            is_active=False,
-        )
-
+    def test_signup_notifies_admin(self):
         response = self.client.post(
             reverse("signup"),
             {
@@ -140,8 +129,8 @@ class PublicPageTests(TestCase):
         self.assertEqual(message.subject, "Radiant Ensemble new user signup")
         self.assertIn("prospective", message.body)
         self.assertIn("awaiting approval", message.body)
-        self.assertIn(active.email, message.bcc)
-        self.assertNotIn(inactive.email, message.bcc)
+        self.assertIn("musicarroll@gmail.com", message.to)
+        self.assertEqual(message.bcc, [])
 
     @override_settings(CF_TURNSTILE_ENABLED=True, CF_TURNSTILE_SECRET_KEY="")
     def test_signup_requires_turnstile_configuration_when_enabled(self):
