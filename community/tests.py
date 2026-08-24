@@ -72,6 +72,18 @@ class PublicPageTests(TestCase):
         self.assertContains(response, reverse("signup"))
         self.assertContains(response, "Sign Up")
 
+    def test_member_drive_link_is_members_only(self):
+        drive_url = "https://drive.google.com/drive/folders/10oCU2RxICXlfNexRhz3QFMleLPgUf1N2?usp=sharing"
+
+        anonymous_response = self.client.get(reverse("about"))
+        self.assertNotContains(anonymous_response, drive_url)
+
+        User.objects.create_user(username="member", password="testpass")
+        self.client.login(username="member", password="testpass")
+        member_response = self.client.get(reverse("home"))
+        self.assertContains(member_response, drive_url)
+        self.assertContains(member_response, "Member Drive")
+
     @override_settings(CF_TURNSTILE_ENABLED=False)
     def test_signup_creates_inactive_user_when_turnstile_disabled(self):
         response = self.client.post(

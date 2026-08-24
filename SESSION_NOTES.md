@@ -200,3 +200,7 @@
 - Added Cloudflare Turnstile verification to the Sign Up form using the same local `.env/config.py` settings as the Contact form.
 - Signup requests now create inactive users only after Turnstile verification succeeds; tests cover disabled Turnstile and missing-configuration failure paths.
 - Updated the home feed API so member listings include only active user accounts, keeping pending signups out of the logged-in home page member list.
+- Added admin signup notification email for new pending users. `notify_new_signup` sends to `ADMIN_SIGNUP_NOTIFICATION_EMAIL`, defaulting to `musicarroll@gmail.com`, and logs mail exceptions without blocking signup.
+- Production note: the production checkout root is `/home/wwadmin/radiantensemble`, not `/home/wwadmin/radiantensemble/website`.
+- Production mail note: Radiant should use the same authenticated submission pattern as WordWalk: `EMAIL_HOST = "mail.cognotrend.com"`, `EMAIL_PORT = 587`, `EMAIL_USE_TLS = True`, and `EMAIL_HOST_USER = "mcarroll@radiantensemble.com"` in `/home/wwadmin/radiantensemble/.env/config.py`.
+- Production restart note: Radiant is served through Apache; use the `webreboot` alias, which runs `sudo systemctl restart apache2`, after changing production config or deployed code.
