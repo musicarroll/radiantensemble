@@ -64,6 +64,15 @@ select {
   text-decoration: none;
 }
 
+.top-nav {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.admin-nav-link {
+  margin-right: auto;
+}
+
 .brand-mark {
   display: inline-grid;
   place-items: center;

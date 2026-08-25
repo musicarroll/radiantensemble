@@ -100,6 +100,25 @@ class PublicPageTests(TestCase):
         positions = [nav.index(label) for label in expected_order]
         self.assertEqual(positions, sorted(positions))
 
+    def test_admin_nav_link_is_only_visible_to_admin_users(self):
+        User.objects.create_user(username="member", password="testpass")
+        self.client.login(username="member", password="testpass")
+        member_response = self.client.get(reverse("home"))
+        self.assertNotContains(member_response, 'href="/admin/"')
+        self.client.logout()
+
+        User.objects.create_user(username="staff", password="testpass", is_staff=True)
+        self.client.login(username="staff", password="testpass")
+        staff_response = self.client.get(reverse("home"))
+        self.assertContains(staff_response, 'class="admin-nav-link" href="/admin/"')
+        self.assertContains(staff_response, "Admin")
+        self.client.logout()
+
+        User.objects.create_user(username="superuser", password="testpass", is_superuser=True)
+        self.client.login(username="superuser", password="testpass")
+        superuser_response = self.client.get(reverse("home"))
+        self.assertContains(superuser_response, 'class="admin-nav-link" href="/admin/"')
+
     @override_settings(CF_TURNSTILE_ENABLED=False)
     def test_signup_creates_inactive_user_when_turnstile_disabled(self):
         response = self.client.post(

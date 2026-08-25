@@ -16,6 +16,9 @@
     </a>
     <nav class="top-nav" aria-label="Primary navigation">
       {% if request.user.is_authenticated %}
+        {% if request.user.is_staff or request.user.is_superuser %}
+          <a class="admin-nav-link" href="/admin/">Admin</a>
+        {% endif %}
         {% if request.resolver_match.url_name != "home" %}
           <a href="{% url 'home' %}">Home</a>
         {% endif %}
