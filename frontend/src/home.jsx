@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 const api = async (url, options = {}) => {
@@ -76,7 +76,6 @@ function useDashboardData() {
   const [state, setState] = useState({
     me: null,
     feed: { posts: [], members: [] },
-    artifacts: [],
     threads: [],
     loading: true,
     error: ""
@@ -84,10 +83,9 @@ function useDashboardData() {
 
   const refresh = async () => {
     try {
-      const [me, feed, artifactData] = await Promise.all([
+      const [me, feed] = await Promise.all([
         api("/api/me/"),
-        api("/api/home-feed/"),
-        api("/api/artifacts/")
+        api("/api/home-feed/")
       ]);
       let threads = { threads: [] };
       if (me.authenticated) {
@@ -96,7 +94,6 @@ function useDashboardData() {
       setState({
         me,
         feed,
-        artifacts: artifactData.artifacts,
         threads: threads.threads,
         loading: false,
         error: ""
@@ -342,176 +339,6 @@ function Feed({ posts, me, onPostUpdated }) {
   );
 }
 
-function ArtifactUpload({ authenticated, onUploaded }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [artifactType, setArtifactType] = useState("other");
-  const [visibility, setVisibility] = useState("members");
-  const [tags, setTags] = useState("");
-  const [file, setFile] = useState(null);
-  const [status, setStatus] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  if (!authenticated) {
-    return <p className="meta">Log in to upload scores, tracks, images, and other shared files.</p>;
-  }
-
-  const submit = async (event) => {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    if (!file) {
-      setStatus("Choose a file before uploading.");
-      return;
-    }
-
-    const form = new FormData();
-    form.append("title", title || file.name);
-    form.append("description", description);
-    form.append("artifact_type", artifactType);
-    form.append("visibility", visibility);
-    form.append("tags", tags);
-    form.append("file", file);
-
-    try {
-      setSaving(true);
-      setStatus("");
-      await api("/api/artifacts/upload/", { method: "POST", body: form });
-      setTitle("");
-      setDescription("");
-      setArtifactType("other");
-      setVisibility("members");
-      setTags("");
-      setFile(null);
-      formElement.reset();
-      setStatus("Upload complete.");
-      onUploaded();
-    } catch (error) {
-      setStatus(error.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <form className="upload-form" onSubmit={submit}>
-      <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title defaults to filename" />
-      <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows="2" placeholder="Short description" />
-      <div className="split-fields">
-        <select value={artifactType} onChange={(event) => setArtifactType(event.target.value)}>
-          <option value="pdf">PDF</option>
-          <option value="audio">Audio</option>
-          <option value="image">Image</option>
-          <option value="artwork">Artwork</option>
-          <option value="other">Other</option>
-        </select>
-        <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
-          <option value="members">Members</option>
-          <option value="public">Public</option>
-          <option value="private">Private</option>
-        </select>
-      </div>
-      <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Tags, comma-separated" />
-      <input type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} />
-      <div className="composer-actions">
-        <button className="primary-button" type="submit" disabled={saving}>{saving ? "Uploading..." : "Upload"}</button>
-      </div>
-      {status && <p className="meta">{status}</p>}
-    </form>
-  );
-}
-
-function ArtifactUpdateForm({ artifact, onUpdated, onCancel }) {
-  const [title, setTitle] = useState(artifact.title);
-  const [description, setDescription] = useState(artifact.description);
-  const [artifactType, setArtifactType] = useState(artifact.artifactType);
-  const [visibility, setVisibility] = useState(artifact.visibility);
-  const [tags, setTags] = useState(artifact.tags.join(", "));
-  const [file, setFile] = useState(null);
-  const [status, setStatus] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!title.trim()) {
-      setStatus("Title is required.");
-      return;
-    }
-
-    const form = new FormData();
-    form.append("title", title);
-    form.append("description", description);
-    form.append("artifact_type", artifactType);
-    form.append("visibility", visibility);
-    form.append("tags", tags);
-    if (file) {
-      form.append("file", file);
-    }
-
-    try {
-      setSaving(true);
-      setStatus("");
-      await api(`/api/artifacts/${artifact.id}/`, { method: "POST", body: form });
-      await onUpdated();
-      onCancel();
-    } catch (error) {
-      setStatus(error.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <form className="artifact-update-form" onSubmit={submit}>
-      <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title" />
-      <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows="2" placeholder="Short description" />
-      <div className="split-fields">
-        <select value={artifactType} onChange={(event) => setArtifactType(event.target.value)}>
-          <option value="pdf">PDF</option>
-          <option value="audio">Audio</option>
-          <option value="image">Image</option>
-          <option value="artwork">Artwork</option>
-          <option value="other">Other</option>
-        </select>
-        <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
-          <option value="members">Members</option>
-          <option value="public">Public</option>
-          <option value="private">Private</option>
-        </select>
-      </div>
-      <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Tags, comma-separated" />
-      <label className="file-replace-field">
-        <span>Replacement file</span>
-        <input type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} />
-      </label>
-      <div className="composer-actions">
-        <button className="secondary-button" type="button" onClick={onCancel} disabled={saving}>Cancel</button>
-        <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving..." : "Save"}</button>
-      </div>
-      {status && <p className="meta">{status}</p>}
-    </form>
-  );
-}
-
-function ArtifactCard({ artifact, me, onUpdated }) {
-  const [editing, setEditing] = useState(false);
-  const canEdit = me?.authenticated && (me.user.isStaff || me.user.id === artifact.owner.id);
-
-  return (
-    <article className="artifact">
-      <div className="artifact-header">
-        <strong><a href={artifact.url}>{artifact.title}</a></strong>
-        {canEdit && !editing && (
-          <button className="text-button" type="button" onClick={() => setEditing(true)}>Edit</button>
-        )}
-      </div>
-      <p>{artifact.artifactType} · {artifact.visibility}</p>
-      {editing && (
-        <ArtifactUpdateForm artifact={artifact} onUpdated={onUpdated} onCancel={() => setEditing(false)} />
-      )}
-    </article>
-  );
-}
-
 function MessagingWidget({ authenticated, members, me, threads, onChanged }) {
   const [recipientId, setRecipientId] = useState("");
   const [newThreadBody, setNewThreadBody] = useState("");
@@ -577,24 +404,12 @@ function MessagingWidget({ authenticated, members, me, threads, onChanged }) {
   );
 }
 
-function RightPanel({ artifacts, threads, authenticated, members, me, onArtifactUploaded, onMessagesChanged }) {
-  const recentArtifacts = useMemo(() => artifacts.slice(0, 3), [artifacts]);
+function RightPanel({ threads, authenticated, members, me, onMessagesChanged }) {
   return (
     <aside className="side-panel feed-stack">
       <section className="panel">
         <h2>Messages</h2>
         <MessagingWidget authenticated={authenticated} members={members} me={me} threads={threads} onChanged={onMessagesChanged} />
-      </section>
-      <section className="panel">
-        <h2>Artifacts</h2>
-        <ArtifactUpload authenticated={authenticated} onUploaded={onArtifactUploaded} />
-        <a className="artifact-search-link" href="/artifacts/search/">Search artifacts</a>
-        <div className="artifact-list">
-          {recentArtifacts.map((artifact) => (
-            <ArtifactCard artifact={artifact} me={me} onUpdated={onArtifactUploaded} key={artifact.id} />
-          ))}
-          {!recentArtifacts.length && <p className="meta">Shared PDFs, audio, images, and artwork will appear here.</p>}
-        </div>
       </section>
     </aside>
   );
@@ -613,12 +428,10 @@ function App() {
         <Feed posts={state.feed.posts} me={state.me} onPostUpdated={refresh} />
       </main>
       <RightPanel
-        artifacts={state.artifacts}
         threads={state.threads}
         authenticated={state.me.authenticated}
         members={state.feed.members}
         me={state.me}
-        onArtifactUploaded={refresh}
         onMessagesChanged={refresh}
       />
     </div>

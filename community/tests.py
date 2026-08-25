@@ -82,7 +82,23 @@ class PublicPageTests(TestCase):
         self.client.login(username="member", password="testpass")
         member_response = self.client.get(reverse("home"))
         self.assertContains(member_response, drive_url)
-        self.assertContains(member_response, "Member Drive")
+        self.assertContains(member_response, "Google Drive")
+        self.assertNotContains(member_response, "Member Drive")
+
+    def test_member_home_nav_hides_home_and_orders_links(self):
+        User.objects.create_user(username="member", password="testpass")
+        self.client.login(username="member", password="testpass")
+
+        response = self.client.get(reverse("home"))
+        content = response.content.decode()
+        nav_start = content.index('<nav class="top-nav"')
+        nav_end = content.index("</nav>", nav_start)
+        nav = content[nav_start:nav_end]
+
+        self.assertNotIn(">Home</a>", nav)
+        expected_order = ["Members", "Events", "Calendar", "Artifacts", "Google Drive", "Contact", "About", "Logout"]
+        positions = [nav.index(label) for label in expected_order]
+        self.assertEqual(positions, sorted(positions))
 
     @override_settings(CF_TURNSTILE_ENABLED=False)
     def test_signup_creates_inactive_user_when_turnstile_disabled(self):
@@ -1269,7 +1285,28 @@ class ArtifactMetadataTests(TestCase):
         member_response = self.client.get(reverse("artifact_search"), {"title": "Members"})
         self.assertContains(member_response, "Members Score")
 
-    def test_artifact_search_paginates_results_at_25(self):
+    def test_artifacts_page_lists_visible_artifacts_at_20_per_page(self):
+        self.client.login(username="artifact-owner", password="testpass")
+        for index in range(25):
+            Artifact.objects.create(
+                owner=self.owner,
+                title=f"Library Artifact {index:02d}",
+                visibility=Visibility.MEMBERS,
+                file=f"artifacts/library-{index:02d}.pdf",
+                sha256_checksum=f"{index:064x}"[-64:],
+            )
+
+        response = self.client.get(reverse("artifacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("artifact_search"))
+        self.assertContains(response, "#artifact-upload")
+        self.assertEqual(response.context["page_obj"].paginator.count, 25)
+        self.assertEqual(len(response.context["page_obj"]), 20)
+        self.assertContains(response, "Page 1 of 2")
+        self.assertContains(response, "page=2")
+
+    def test_artifact_search_paginates_results_at_20(self):
         for index in range(30):
             Artifact.objects.create(
                 owner=self.owner,
@@ -1284,6 +1321,6 @@ class ArtifactMetadataTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["page_obj"].paginator.count, 30)
-        self.assertEqual(len(response.context["page_obj"]), 25)
+        self.assertEqual(len(response.context["page_obj"]), 20)
         self.assertContains(response, "Page 1 of 2")
         self.assertContains(response, "page=2")

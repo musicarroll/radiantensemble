@@ -578,6 +578,19 @@ main {
   border-bottom: 1px solid var(--line);
 }
 
+.artifact-page-upload-form {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.artifact-action-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
 .artifact-search-link {
   display: inline-block;
   margin: 0 0 1rem;

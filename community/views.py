@@ -375,6 +375,18 @@ def member_page(request, slug):
 
 
 @login_required
+def artifacts(request):
+    visible_artifacts = [
+        artifact
+        for artifact in Artifact.objects.select_related("owner").all()
+        if artifact.is_visible_to(request.user)
+    ]
+    paginator = Paginator(visible_artifacts, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(request, "community/artifacts.html", {"page_obj": page_obj})
+
+
+@login_required
 def edit_profile(request):
     profile, _created = MemberProfile.objects.get_or_create(
         user=request.user,
@@ -596,7 +608,7 @@ def artifact_search(request):
             artifacts = artifacts.filter(updated_at__lte=updated_before)
 
     visible_artifacts = [artifact for artifact in artifacts if artifact.is_visible_to(request.user)]
-    paginator = Paginator(visible_artifacts, 25)
+    paginator = Paginator(visible_artifacts, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
     query_params = request.GET.copy()
     query_params.pop("page", None)

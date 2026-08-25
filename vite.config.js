@@ -8,6 +8,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
+        artifacts: "frontend/src/artifacts.jsx",
         home: "frontend/src/home.jsx",
         thread: "frontend/src/thread.jsx"
       },

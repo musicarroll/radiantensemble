@@ -1,0 +1,66 @@
+{% extends "community/base.html" %}
+{% load static %}
+
+{% block title %}Artifacts | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="artifact-search-page">
+    <div class="page-heading">
+      <p class="eyebrow">Member Library</p>
+      <h1>Artifacts</h1>
+    </div>
+
+    <nav class="artifact-action-links" aria-label="Artifact tools">
+      <a class="primary-button" href="#artifact-upload">Upload Artifact</a>
+      <a class="secondary-button" href="{% url 'artifact_search' %}">Search Artifacts</a>
+    </nav>
+
+    <section class="artifact-results" id="artifact-upload">
+      <div class="results-heading">
+        <h2>Upload</h2>
+      </div>
+      <div id="artifact-upload-app" data-authenticated="{{ request.user.is_authenticated|yesno:'true,false' }}">
+        <p class="meta">Loading upload form...</p>
+      </div>
+    </section>
+
+    <section class="artifact-results">
+      <div class="results-heading">
+        <h2>All Artifacts</h2>
+        <p class="meta">{{ page_obj.paginator.count }} artifact{{ page_obj.paginator.count|pluralize }}</p>
+      </div>
+
+      <div class="artifact-list">
+        {% for artifact in page_obj %}
+          <article class="artifact">
+            <div class="artifact-header">
+              <strong><a href="{{ artifact.file.url }}">{{ artifact.title }}</a></strong>
+              <span class="meta">{{ artifact.owner.get_username }}</span>
+            </div>
+            <p>{{ artifact.get_artifact_type_display }} · {{ artifact.get_visibility_display }}</p>
+            {% if artifact.description %}<p>{{ artifact.description }}</p>{% endif %}
+            <p>
+              {% if artifact.original_filename %}{{ artifact.original_filename }}{% else %}{{ artifact.file.name }}{% endif %}
+              {% if artifact.file_size %} · {{ artifact.file_size }} bytes{% endif %}
+            </p>
+          </article>
+        {% empty %}
+          <p class="meta">No visible artifacts yet.</p>
+        {% endfor %}
+      </div>
+
+      {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="pagination" aria-label="Artifact pages">
+          {% if page_obj.has_previous %}
+            <a class="secondary-button" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+          {% endif %}
+          <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+          {% if page_obj.has_next %}
+            <a class="secondary-button" href="?page={{ page_obj.next_page_number }}">Next</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    </section>
+  </section>
+  <script type="module" src="{% static 'assets/artifacts.js' %}"></script>
+{% endblock %}
