@@ -35,7 +35,16 @@ from .models import (
     Post,
     Visibility,
 )
-from .notifications import notify_direct_message, notify_new_home_post, notify_new_signup
+from .notifications import (
+    notify_artifact_updated,
+    notify_artifact_uploaded,
+    notify_direct_message,
+    notify_event_created,
+    notify_event_deleted,
+    notify_event_updated,
+    notify_new_home_post,
+    notify_new_signup,
+)
 from .utils import calculate_sha256, detect_mime_type, sign_artifact_metadata
 
 
@@ -221,6 +230,7 @@ def add_event(request):
         event = form.save(commit=False)
         event.submitted_by = request.user
         event.save()
+        notify_event_created(request, event)
         return redirect("event_detail", event_id=event.pk)
     return render(request, "community/event_form.html", {"form": form, "page_title": "Add Event"})
 
@@ -236,7 +246,8 @@ def edit_event(request, event_id):
         raise Http404("Event not found")
     form = EventForm(request.POST or None, instance=event)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        event = form.save()
+        notify_event_updated(request, event)
         return redirect("event_detail", event_id=event.pk)
     return render(request, "community/event_form.html", {"form": form, "event": event, "page_title": "Edit Event"})
 
@@ -247,6 +258,7 @@ def delete_event(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
     if not _can_manage_event(request.user, event):
         raise Http404("Event not found")
+    notify_event_deleted(request, event)
     event.delete()
     return redirect("calendar")
 
@@ -264,13 +276,16 @@ def delete_event_occurrence(request, event_id):
     if not event.occurs_on(occurrence_date):
         raise Http404("Event occurrence not found")
     if event.repeat == Event.RepeatRule.NONE:
+        notify_event_deleted(request, event)
         event.delete()
     else:
-        EventCancellation.objects.get_or_create(
+        _cancellation, created = EventCancellation.objects.get_or_create(
             event=event,
             occurrence_date=occurrence_date,
             defaults={"cancelled_by": request.user},
         )
+        if created:
+            notify_event_deleted(request, event, occurrence_date=occurrence_date)
     return redirect(f"{reverse('calendar')}?year={occurrence_date.year}&month={occurrence_date.month}")
 
 
@@ -776,6 +791,7 @@ def upload_artifact(request):
     artifact.stored_filename = artifact.file.name
     _sign_artifact(artifact)
     artifact.save()
+    notify_artifact_uploaded(request, artifact)
     return JsonResponse({"artifact": _artifact_payload(artifact)}, status=201)
 
 
@@ -795,6 +811,7 @@ def update_artifact(request, artifact_id):
         _replace_artifact_file(artifact, uploaded_file)
 
     artifact.save()
+    notify_artifact_updated(request, artifact)
     return JsonResponse({"artifact": _artifact_payload(artifact)})
 
 # Create your views here.

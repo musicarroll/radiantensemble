@@ -311,6 +311,63 @@ class EventTests(TestCase):
         event = Event.objects.get(title="Rehearsal")
         self.assertEqual(event.submitted_by, self.member)
 
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
+        SERVER_EMAIL="mcarroll@radiantensemble.com",
+    )
+    def test_event_create_edit_and_delete_send_notifications(self):
+        recipient = User.objects.create_user(username="event-recipient", password="testpass", email="event@example.com")
+        self.client.login(username="member", password="testpass")
+
+        create_response = self.client.post(
+            reverse("add_event"),
+            {
+                "title": "Notification Rehearsal",
+                "description": "Bring folders.",
+                "location": "Studio A",
+                "event_date": "2026-07-10",
+                "event_time": "19:30",
+                "visibility": Event.EventVisibility.MEMBERS,
+                "repeat": Event.RepeatRule.NONE,
+            },
+        )
+        event = Event.objects.get(title="Notification Rehearsal")
+
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(mail.outbox[-1].subject, "Radiant Ensemble event created")
+        self.assertIn("Notification Rehearsal", mail.outbox[-1].body)
+        self.assertIn(reverse("event_detail", kwargs={"event_id": event.pk}), mail.outbox[-1].body)
+        self.assertIn(f"{reverse('calendar')}?year=2026&month=7", mail.outbox[-1].body)
+        self.assertIn(recipient.email, mail.outbox[-1].bcc)
+
+        edit_response = self.client.post(
+            reverse("edit_event", kwargs={"event_id": event.pk}),
+            {
+                "title": "Updated Notification Rehearsal",
+                "description": "Bring pencils.",
+                "location": "Studio B",
+                "event_date": "2026-07-11",
+                "event_time": "20:00",
+                "visibility": Event.EventVisibility.PUBLIC,
+                "repeat": Event.RepeatRule.WEEKLY,
+            },
+        )
+        event.refresh_from_db()
+
+        self.assertEqual(edit_response.status_code, 302)
+        self.assertEqual(mail.outbox[-1].subject, "Radiant Ensemble event updated")
+        self.assertIn("Updated Notification Rehearsal", mail.outbox[-1].body)
+        self.assertIn(reverse("event_detail", kwargs={"event_id": event.pk}), mail.outbox[-1].body)
+        self.assertIn(f"{reverse('calendar')}?year=2026&month=7", mail.outbox[-1].body)
+
+        delete_response = self.client.post(reverse("delete_event", kwargs={"event_id": event.pk}))
+
+        self.assertEqual(delete_response.status_code, 302)
+        self.assertEqual(mail.outbox[-1].subject, "Radiant Ensemble event deleted")
+        self.assertIn("Updated Notification Rehearsal", mail.outbox[-1].body)
+        self.assertIn(f"{reverse('calendar')}?year=2026&month=7", mail.outbox[-1].body)
+
     def test_upcoming_events_lists_public_future_events(self):
         Event.objects.create(
             submitted_by=self.member,
@@ -623,6 +680,44 @@ class WorkItemTests(TestCase):
         self.assertTrue(EventCancellation.objects.filter(event=event, occurrence_date=date(2026, 7, 8)).exists())
         self.assertFalse(event.occurs_on(date(2026, 7, 8)))
         self.assertTrue(event.occurs_on(date(2026, 7, 15)))
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
+        SERVER_EMAIL="mcarroll@radiantensemble.com",
+    )
+    def test_delete_repeated_occurrence_sends_notification_once(self):
+        User.objects.create_user(username="event-recipient", password="testpass", email="event@example.com")
+        event = Event.objects.create(
+            submitted_by=self.member,
+            title="Weekly Notified Rehearsal",
+            event_date=date(2026, 7, 1),
+            event_time=time(19, 0),
+            visibility=Event.EventVisibility.MEMBERS,
+            repeat=Event.RepeatRule.WEEKLY,
+        )
+        self.client.login(username="member", password="testpass")
+
+        response = self.client.post(
+            reverse("delete_event_occurrence", kwargs={"event_id": event.pk}),
+            {"occurrence_date": "2026-07-08"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Radiant Ensemble event occurrence deleted")
+        self.assertIn("Weekly Notified Rehearsal", message.body)
+        self.assertIn("Removed occurrence: 2026-07-08", message.body)
+        self.assertIn(f"{reverse('calendar')}?year=2026&month=7", message.body)
+
+        duplicate_response = self.client.post(
+            reverse("delete_event_occurrence", kwargs={"event_id": event.pk}),
+            {"occurrence_date": "2026-07-08"},
+        )
+
+        self.assertEqual(duplicate_response.status_code, 404)
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_cancelled_occurrence_hidden_from_calendar(self):
         event = Event.objects.create(
@@ -1096,6 +1191,90 @@ class ArtifactMetadataTests(TestCase):
         self.assertTrue(artifact.verify_metadata_signature())
         self.assertTrue(artifact.verify_file_integrity())
         self.assertEqual(response.json()["artifact"]["sha256Checksum"], artifact.sha256_checksum)
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
+        SERVER_EMAIL="mcarroll@radiantensemble.com",
+    )
+    def test_artifact_upload_notifies_visible_active_users(self):
+        self.owner.email = "artifact-owner@example.com"
+        self.owner.save(update_fields=["email"])
+        recipient = User.objects.create_user(username="artifact-recipient", password="testpass", email="artifact@example.com")
+        inactive = User.objects.create_user(
+            username="inactive-artifact-recipient",
+            password="testpass",
+            email="inactive-artifact@example.com",
+            is_active=False,
+        )
+        self.client.login(username="artifact-owner", password="testpass")
+
+        response = self.client.post(
+            reverse("upload_artifact"),
+            {
+                "title": "Notification Etude",
+                "description": "Practice score",
+                "artifact_type": Artifact.ArtifactType.PDF,
+                "visibility": Visibility.MEMBERS,
+                "tags": "score,practice",
+                "file": SimpleUploadedFile("notification-etude.pdf", b"score", content_type="application/pdf"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Radiant Ensemble artifact uploaded")
+        self.assertIn("Notification Etude", message.body)
+        self.assertIn("Practice score", message.body)
+        self.assertIn(reverse("artifacts"), message.body)
+        self.assertIn(reverse("artifact_search"), message.body)
+        self.assertIn(self.owner.email, message.bcc)
+        self.assertIn(recipient.email, message.bcc)
+        self.assertNotIn(inactive.email, message.bcc)
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
+        SERVER_EMAIL="mcarroll@radiantensemble.com",
+    )
+    def test_artifact_update_notifies_visible_active_users(self):
+        self.owner.email = "artifact-owner@example.com"
+        self.owner.save(update_fields=["email"])
+        recipient = User.objects.create_user(username="artifact-recipient", password="testpass", email="artifact@example.com")
+        self.client.login(username="artifact-owner", password="testpass")
+        upload_response = self.client.post(
+            reverse("upload_artifact"),
+            {
+                "title": "Original Notification Artifact",
+                "visibility": Visibility.MEMBERS,
+                "file": SimpleUploadedFile("notes.txt", b"notes", content_type="text/plain"),
+            },
+        )
+        artifact = Artifact.objects.get(pk=upload_response.json()["artifact"]["id"])
+        mail.outbox.clear()
+
+        response = self.client.post(
+            reverse("update_artifact", args=[artifact.pk]),
+            {
+                "title": "Updated Notification Artifact",
+                "description": "Updated artifact details",
+                "artifact_type": Artifact.ArtifactType.AUDIO,
+                "visibility": Visibility.MEMBERS,
+                "tags": "updated",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Radiant Ensemble artifact updated")
+        self.assertIn("Updated Notification Artifact", message.body)
+        self.assertIn("Updated artifact details", message.body)
+        self.assertIn(reverse("artifacts"), message.body)
+        self.assertIn(reverse("artifact_search"), message.body)
+        self.assertIn(self.owner.email, message.bcc)
+        self.assertIn(recipient.email, message.bcc)
 
     def test_owner_can_replace_artifact_file_without_changing_manual_metadata(self):
         original_content = b"original score"
