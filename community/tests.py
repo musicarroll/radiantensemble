@@ -1,4 +1,5 @@
 import hashlib
+import re
 import shutil
 import tempfile
 from django.core import mail
@@ -199,6 +200,108 @@ class PublicPageTests(TestCase):
         self.client.login(username="member", password="testpass")
         response = self.client.get(reverse("signup"))
         self.assertRedirects(response, reverse("home"))
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
+    )
+    def test_password_reset_sends_email_for_matching_active_user(self):
+        User.objects.create_user(
+            username="member",
+            email="member@example.com",
+            password="old-test-pass-123",
+        )
+
+        response = self.client.post(
+            reverse("password_reset"),
+            {
+                "username": "member",
+                "email": "member@example.com",
+            },
+        )
+
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Radiant Ensemble password reset")
+        self.assertEqual(message.to, ["member@example.com"])
+        self.assertIn("Radiant Ensemble account", message.body)
+        self.assertIn("/reset/", message.body)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_password_reset_requires_username_email_match(self):
+        User.objects.create_user(
+            username="member",
+            email="member@example.com",
+            password="old-test-pass-123",
+        )
+        User.objects.create_user(
+            username="other",
+            email="other@example.com",
+            password="old-test-pass-123",
+        )
+
+        response = self.client.post(
+            reverse("password_reset"),
+            {
+                "username": "member",
+                "email": "other@example.com",
+            },
+        )
+
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_password_reset_ignores_inactive_pending_users(self):
+        User.objects.create_user(
+            username="pending",
+            email="pending@example.com",
+            password="old-test-pass-123",
+            is_active=False,
+        )
+
+        response = self.client.post(
+            reverse("password_reset"),
+            {
+                "username": "pending",
+                "email": "pending@example.com",
+            },
+        )
+
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_password_reset_confirm_updates_password(self):
+        user = User.objects.create_user(
+            username="member",
+            email="member@example.com",
+            password="old-test-pass-123",
+        )
+        self.client.post(
+            reverse("password_reset"),
+            {
+                "username": "member",
+                "email": "member@example.com",
+            },
+        )
+        reset_url = re.search(r"http://testserver(?P<path>/reset/[^\s]+)", mail.outbox[0].body).group("path")
+
+        get_response = self.client.get(reset_url)
+        self.assertEqual(get_response.status_code, 302)
+        set_password_url = get_response["Location"]
+        post_response = self.client.post(
+            set_password_url,
+            {
+                "new_password1": "new-test-pass-456",
+                "new_password2": "new-test-pass-456",
+            },
+        )
+
+        self.assertRedirects(post_response, reverse("password_reset_complete"))
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("new-test-pass-456"))
 
     @override_settings(CF_TURNSTILE_ENABLED=False)
     def test_contact_form_saves_when_turnstile_disabled(self):

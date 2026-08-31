@@ -204,3 +204,18 @@
 - Production note: the production checkout root is `/home/wwadmin/radiantensemble`, not `/home/wwadmin/radiantensemble/website`.
 - Production mail note: Radiant should use the same authenticated submission pattern as WordWalk: `EMAIL_HOST = "mail.cognotrend.com"`, `EMAIL_PORT = 587`, `EMAIL_USE_TLS = True`, and `EMAIL_HOST_USER = "mcarroll@radiantensemble.com"` in `/home/wwadmin/radiantensemble/.env/config.py`.
 - Production restart note: Radiant is served through Apache; use the `webreboot` alias, which runs `sudo systemctl restart apache2`, after changing production config or deployed code.
+
+## 2026-08-29 Artifacts Page, Navigation, And Notifications
+
+- Added member-only `/artifacts/` page with links to upload and search artifacts plus a paginated list of visible artifacts, 20 per page.
+- Moved artifact upload out of the home page dashboard into a dedicated React bundle at `frontend/src/artifacts.jsx`.
+- Removed the Artifacts section and artifacts API fetch from the home page dashboard.
+- Added the Artifacts link to the member navbar.
+- Renamed the member Google Drive navbar link from "Member Drive" to "Google Drive".
+- Reordered the authenticated navbar as Members, Events, Calendar, Artifacts, Google Drive, Contact, About, Logout, with Home hidden while already on the home page.
+- Added a left-justified Admin navbar link to `/admin/` for staff and superuser accounts only.
+- Changed artifact search pagination from 25 to 20 results per page.
+- Added email notifications for artifact upload and artifact update. Artifact notifications include artifact details plus links to `/artifacts/` and `/artifacts/search/`, and recipients are filtered to active users who can see the artifact.
+- Added email notifications for event creation, event editing, event deletion, and recurring event occurrence deletion. Event notifications include event details plus links to the event detail page when available and the relevant calendar month.
+- Added tests for the new artifacts page, navbar behavior, Admin link visibility, artifact notifications, and event notifications.
+- Verified with `npm run build`, `python manage.py test community.tests.PublicPageTests`, targeted event/artifact notification tests, and the full `python manage.py test community` suite.

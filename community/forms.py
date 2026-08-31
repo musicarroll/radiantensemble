@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 from django.contrib.auth.models import User
 from django.forms import inlineformset_factory
 
@@ -12,6 +12,26 @@ class PendingUserCreationForm(UserCreationForm):
     class Meta:
         model = User
         fields = ["username", "email"]
+
+
+class RadiantPasswordResetForm(PasswordResetForm):
+    username = forms.CharField(
+        max_length=150,
+        widget=forms.TextInput(attrs={"autocapitalize": "none"}),
+        help_text="Enter the username for the account you want to reset.",
+    )
+
+    def get_users(self, email):
+        username = (self.cleaned_data.get("username") or "").strip()
+        if not username:
+            return []
+
+        active_users = User._default_manager.filter(
+            username=username,
+            email__iexact=email,
+            is_active=True,
+        )
+        return (user for user in active_users if user.has_usable_password())
 
 
 class ContactForm(forms.ModelForm):
