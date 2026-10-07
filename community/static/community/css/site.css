@@ -533,6 +533,36 @@ main {
   margin-top: 0.7rem;
 }
 
+.file-field {
+  display: block;
+  margin-top: 0.7rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.file-field input[type="file"] {
+  display: block;
+}
+
+.form-status {
+  margin-bottom: 0;
+  color: #991b1b;
+}
+
+.post-graphic {
+  display: block;
+  width: 100%;
+  max-height: 720px;
+  margin-top: 0.8rem;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.post-graphic-preview {
+  max-height: 280px;
+}
+
 .post-header,
 .post-actions {
   display: flex;

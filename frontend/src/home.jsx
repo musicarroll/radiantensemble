@@ -113,8 +113,11 @@ function useDashboardData() {
 function Composer({ me, onPostCreated }) {
   const [body, setBody] = useState("");
   const [title, setTitle] = useState("");
+  const [graphic, setGraphic] = useState(null);
+  const [graphicInputKey, setGraphicInputKey] = useState(0);
   const [visibility, setVisibility] = useState("members");
   const [pinned, setPinned] = useState(false);
+  const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const authenticated = me?.authenticated;
   const canPin = me?.user?.isStaff;
@@ -136,16 +139,27 @@ function Composer({ me, onPostCreated }) {
     form.append("title", title);
     form.append("body", body);
     form.append("visibility", visibility);
+    if (graphic) {
+      form.append("graphic", graphic);
+    }
     if (canPin) {
       form.append("pinned", pinned ? "true" : "false");
     }
-    setSaving(true);
-    await api("/api/posts/", { method: "POST", body: form });
-    setTitle("");
-    setBody("");
-    setPinned(false);
-    setSaving(false);
-    onPostCreated();
+    try {
+      setSaving(true);
+      setStatus("");
+      await api("/api/posts/", { method: "POST", body: form });
+      setTitle("");
+      setBody("");
+      setGraphic(null);
+      setGraphicInputKey((value) => value + 1);
+      setPinned(false);
+      await onPostCreated();
+    } catch (error) {
+      setStatus(error.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -153,6 +167,15 @@ function Composer({ me, onPostCreated }) {
       <h2>Share an Update</h2>
       <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Optional title" />
       <textarea value={body} onChange={(event) => setBody(event.target.value)} rows="4" placeholder="Post rehearsal notes, questions, announcements, or ideas." />
+      <label className="file-field">
+        <span>Optional graphic (JPEG, PNG, GIF, or WebP; maximum 10 MB)</span>
+        <input
+          key={graphicInputKey}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          onChange={(event) => setGraphic(event.target.files?.[0] || null)}
+        />
+      </label>
       <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
         <option value="members">Members only</option>
         <option value="public">Public</option>
@@ -167,6 +190,7 @@ function Composer({ me, onPostCreated }) {
       <div className="composer-actions">
         <button className="primary-button" type="submit" disabled={saving}>{saving ? "Posting..." : "Post"}</button>
       </div>
+      {status && <p className="form-status" role="alert">{status}</p>}
     </form>
   );
 }
@@ -208,6 +232,9 @@ function PostCard({ post, me, onUpdated }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(post.title);
   const [body, setBody] = useState(post.body);
+  const [graphic, setGraphic] = useState(null);
+  const [graphicInputKey, setGraphicInputKey] = useState(0);
+  const [removeGraphic, setRemoveGraphic] = useState(false);
   const [visibility, setVisibility] = useState(post.visibility);
   const [pinned, setPinned] = useState(post.pinned);
   const [status, setStatus] = useState("");
@@ -219,6 +246,9 @@ function PostCard({ post, me, onUpdated }) {
   const cancelEdit = () => {
     setTitle(post.title);
     setBody(post.body);
+    setGraphic(null);
+    setGraphicInputKey((value) => value + 1);
+    setRemoveGraphic(false);
     setVisibility(post.visibility);
     setPinned(post.pinned);
     setStatus("");
@@ -235,6 +265,11 @@ function PostCard({ post, me, onUpdated }) {
     form.append("title", title);
     form.append("body", body);
     form.append("visibility", visibility);
+    if (graphic) {
+      form.append("graphic", graphic);
+    } else if (removeGraphic) {
+      form.append("remove_graphic", "true");
+    }
     if (canPinOwnPost) {
       form.append("pinned", pinned ? "true" : "false");
     }
@@ -287,6 +322,38 @@ function PostCard({ post, me, onUpdated }) {
           <h2>Edit Post</h2>
           <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Optional title" />
           <textarea value={body} onChange={(event) => setBody(event.target.value)} rows="5" />
+          {post.graphicUrl && !removeGraphic && !graphic && (
+            <img className="post-graphic post-graphic-preview" src={post.graphicUrl} alt="Current post graphic" />
+          )}
+          <label className="file-field">
+            <span>{post.graphicUrl ? "Replace graphic" : "Add a graphic"} (JPEG, PNG, GIF, or WebP; maximum 10 MB)</span>
+            <input
+              key={graphicInputKey}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={(event) => {
+                const selectedGraphic = event.target.files?.[0] || null;
+                setGraphic(selectedGraphic);
+                if (selectedGraphic) setRemoveGraphic(false);
+              }}
+            />
+          </label>
+          {post.graphicUrl && (
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={removeGraphic}
+                onChange={(event) => {
+                  setRemoveGraphic(event.target.checked);
+                  if (event.target.checked) {
+                    setGraphic(null);
+                    setGraphicInputKey((value) => value + 1);
+                  }
+                }}
+              />
+              <span>Remove the current graphic</span>
+            </label>
+          )}
           <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
             <option value="members">Members only</option>
             <option value="public">Public</option>
@@ -320,6 +387,13 @@ function PostCard({ post, me, onUpdated }) {
       </div>
       {post.pinned && <span className="pin-badge">Pinned</span>}
       {post.title && <h2>{post.title}</h2>}
+      {post.graphicUrl && (
+        <img
+          className="post-graphic"
+          src={post.graphicUrl}
+          alt={post.title ? `${post.title} graphic` : `Graphic posted by ${post.owner.displayName}`}
+        />
+      )}
       <p><LinkifiedText text={post.body} /></p>
     </article>
   );

@@ -219,3 +219,13 @@
 - Added email notifications for event creation, event editing, event deletion, and recurring event occurrence deletion. Event notifications include event details plus links to the event detail page when available and the relevant calendar month.
 - Added tests for the new artifacts page, navbar behavior, Admin link visibility, artifact notifications, and event notifications.
 - Verified with `npm run build`, `python manage.py test community.tests.PublicPageTests`, targeted event/artifact notification tests, and the full `python manage.py test community` suite.
+
+## 2026-10-06 Home Post Graphics
+
+- Added an optional `Post.graphic` image stored under `media/post_graphics/<year>/<month>/`; deployment requires running migration `0010_post_graphic`.
+- The home-page composer now accepts JPEG, PNG, GIF, and WebP graphics up to 10 MB and displays them in the feed.
+- Graphic content is validated server-side with Pillow rather than trusting the browser MIME type or filename.
+- Post owners can add, replace, or remove a graphic while editing. Replaced and deleted post graphics are removed from storage.
+- Member profile post lists display attached graphics as well.
+- Added API coverage for valid uploads, invalid-file rejection, replacement/removal, and storage cleanup on deletion.
+- Verified with `npm run build`, `python manage.py check`, `python manage.py makemigrations --check`, focused graphic tests, and the full 103-test `python manage.py test community` suite.

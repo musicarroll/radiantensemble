@@ -23,7 +23,7 @@ For Turnstile-backed contact form testing, create `.env/config.py` using `.env.e
 
 - Django `User` and `Group` handle account management and member hierarchy.
 - `MemberProfile` gives each user an optional personal page at `/members/<slug>/`.
-- `Post` and `Artifact` default to members-only visibility, with public, group-scoped, and private options.
+- `Post` and `Artifact` default to members-only visibility, with public, group-scoped, and private options. Posts can include an optional JPEG, PNG, GIF, or WebP graphic up to 10 MB.
 - `MessageThread` and `Message` provide members-only direct and group messaging foundations.
 - Uploaded files are stored under `media/` in development and tracked by the database.
 - React is built by Vite into `frontend/dist/assets/home.js`, which Django serves through static files.

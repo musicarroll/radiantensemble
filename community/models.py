@@ -97,6 +97,7 @@ class VisibleContent(TimestampedModel):
 class Post(VisibleContent):
     title = models.CharField(max_length=180, blank=True)
     body = models.TextField()
+    graphic = models.ImageField(upload_to="post_graphics/%Y/%m/", blank=True)
     pinned = models.BooleanField(default=False)
 
     class Meta:

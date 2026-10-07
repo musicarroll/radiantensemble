@@ -3,9 +3,11 @@ from calendar import Calendar, month_name
 from datetime import date, datetime, time
 from urllib import parse, request as urlrequest
 
+from django import forms as django_forms
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -439,11 +441,36 @@ def _post_payload(post):
         "id": post.pk,
         "title": post.title,
         "body": post.body,
+        "graphicUrl": post.graphic.url if post.graphic else "",
         "owner": _user_payload(post.owner),
         "visibility": post.visibility,
         "pinned": post.pinned,
         "createdAt": post.created_at.isoformat(),
     }
+
+
+POST_GRAPHIC_MAX_SIZE = 10 * 1024 * 1024
+POST_GRAPHIC_FORMATS = {"GIF", "JPEG", "PNG", "WEBP"}
+
+
+def _post_graphic_validation_error(uploaded_file):
+    if not uploaded_file:
+        return ""
+    if uploaded_file.size > POST_GRAPHIC_MAX_SIZE:
+        return "The graphic must be 10 MB or smaller."
+    try:
+        cleaned_file = django_forms.ImageField().clean(uploaded_file)
+    except ValidationError:
+        return "Upload a valid JPEG, PNG, GIF, or WebP graphic."
+
+    image_format = getattr(getattr(cleaned_file, "image", None), "format", "")
+    if image_format not in POST_GRAPHIC_FORMATS:
+        return "Upload a JPEG, PNG, GIF, or WebP graphic."
+    try:
+        uploaded_file.seek(0)
+    except (AttributeError, OSError):
+        pass
+    return ""
 
 
 def _artifact_payload(artifact):
@@ -699,15 +726,20 @@ def send_message(request, thread_id):
 def create_post(request):
     body = request.POST.get("body", "").strip()
     visibility = request.POST.get("visibility", Visibility.MEMBERS)
+    graphic = request.FILES.get("graphic")
     if not body:
         return JsonResponse({"error": "Post body is required."}, status=400)
     if visibility not in Visibility.values:
         return JsonResponse({"error": "Invalid visibility value."}, status=400)
+    graphic_error = _post_graphic_validation_error(graphic)
+    if graphic_error:
+        return JsonResponse({"error": graphic_error}, status=400)
 
     post = Post.objects.create(
         owner=request.user,
         title=request.POST.get("title", "").strip(),
         body=body,
+        graphic=graphic,
         visibility=visibility,
         pinned=request.user.is_staff and request.POST.get("pinned") == "true",
     )
@@ -724,17 +756,28 @@ def update_post(request, post_id):
 
     body = request.POST.get("body", "").strip()
     visibility = request.POST.get("visibility", post.visibility)
+    graphic = request.FILES.get("graphic")
     if not body:
         return JsonResponse({"error": "Post body is required."}, status=400)
     if visibility not in Visibility.values:
         return JsonResponse({"error": "Invalid visibility value."}, status=400)
+    graphic_error = _post_graphic_validation_error(graphic)
+    if graphic_error:
+        return JsonResponse({"error": graphic_error}, status=400)
 
+    old_graphic_name = ""
+    graphic_storage = post.graphic.storage
+    if graphic or request.POST.get("remove_graphic") == "true":
+        old_graphic_name = post.graphic.name if post.graphic else ""
+        post.graphic = graphic or ""
     post.title = request.POST.get("title", "").strip()
     post.body = body
     post.visibility = visibility
     if request.user.is_staff:
         post.pinned = request.POST.get("pinned") == "true"
-    post.save(update_fields=["title", "body", "visibility", "pinned", "updated_at"])
+    post.save(update_fields=["title", "body", "graphic", "visibility", "pinned", "updated_at"])
+    if old_graphic_name and old_graphic_name != post.graphic.name:
+        graphic_storage.delete(old_graphic_name)
     return JsonResponse({"post": _post_payload(post)})
 
 

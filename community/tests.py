@@ -1,4 +1,6 @@
+import base64
 import hashlib
+import os
 import re
 import shutil
 import tempfile
@@ -27,6 +29,11 @@ from .utils import (
     detect_mime_type,
     sign_artifact_metadata,
     verify_artifact_metadata_signature,
+)
+
+
+VALID_PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 )
 
 
@@ -930,6 +937,45 @@ class ApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Post.objects.get(title="Pinned").pinned)
 
+    def test_create_post_with_graphic(self):
+        self.client.login(username="owner", password="testpass")
+        graphic = SimpleUploadedFile("announcement.png", VALID_PNG_BYTES, content_type="image/png")
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("create_post"),
+                {
+                    "title": "Graphic post",
+                    "body": "See the attached graphic.",
+                    "visibility": Visibility.MEMBERS,
+                    "graphic": graphic,
+                },
+            )
+
+            self.assertEqual(response.status_code, 201)
+            post = Post.objects.get(title="Graphic post")
+            self.assertTrue(post.graphic.name.startswith("post_graphics/"))
+            self.assertTrue(os.path.exists(post.graphic.path))
+            self.assertEqual(response.json()["post"]["graphicUrl"], post.graphic.url)
+
+    def test_create_post_rejects_file_that_is_not_a_graphic(self):
+        self.client.login(username="owner", password="testpass")
+        upload = SimpleUploadedFile("not-really.png", b"plain text", content_type="image/png")
+
+        response = self.client.post(
+            reverse("create_post"),
+            {
+                "title": "Invalid graphic",
+                "body": "This should not be saved.",
+                "visibility": Visibility.MEMBERS,
+                "graphic": upload,
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("valid JPEG, PNG, GIF, or WebP", response.json()["error"])
+        self.assertFalse(Post.objects.filter(title="Invalid graphic").exists())
+
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         DEFAULT_FROM_EMAIL="Radiantensemble.com Admin <mcarroll@radiantensemble.com>",
@@ -999,6 +1045,54 @@ class ApiTests(TestCase):
         self.assertEqual(post.title, "Updated")
         self.assertEqual(post.body, "Revised body")
         self.assertEqual(post.visibility, Visibility.PUBLIC)
+
+    def test_owner_can_replace_and_remove_post_graphic(self):
+        self.client.login(username="owner", password="testpass")
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            create_response = self.client.post(
+                reverse("create_post"),
+                {
+                    "title": "Illustrated",
+                    "body": "Original graphic",
+                    "visibility": Visibility.MEMBERS,
+                    "graphic": SimpleUploadedFile("original.png", VALID_PNG_BYTES, content_type="image/png"),
+                },
+            )
+            post = Post.objects.get(pk=create_response.json()["post"]["id"])
+            original_path = post.graphic.path
+
+            replace_response = self.client.post(
+                reverse("update_post", kwargs={"post_id": post.pk}),
+                {
+                    "title": "Illustrated",
+                    "body": "Replacement graphic",
+                    "visibility": Visibility.MEMBERS,
+                    "graphic": SimpleUploadedFile("replacement.png", VALID_PNG_BYTES, content_type="image/png"),
+                },
+            )
+
+            self.assertEqual(replace_response.status_code, 200)
+            post.refresh_from_db()
+            replacement_path = post.graphic.path
+            self.assertFalse(os.path.exists(original_path))
+            self.assertTrue(os.path.exists(replacement_path))
+
+            remove_response = self.client.post(
+                reverse("update_post", kwargs={"post_id": post.pk}),
+                {
+                    "title": "Illustrated",
+                    "body": "No graphic now",
+                    "visibility": Visibility.MEMBERS,
+                    "remove_graphic": "true",
+                },
+            )
+
+            self.assertEqual(remove_response.status_code, 200)
+            post.refresh_from_db()
+            self.assertFalse(post.graphic)
+            self.assertEqual(remove_response.json()["post"]["graphicUrl"], "")
+            self.assertFalse(os.path.exists(replacement_path))
 
     def test_staff_owner_can_update_pinned_state(self):
         self.owner.is_staff = True
@@ -1080,6 +1174,27 @@ class ApiTests(TestCase):
         response = self.client.post(reverse("delete_post", kwargs={"post_id": post.pk}))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Post.objects.filter(pk=post.pk).exists())
+
+    def test_deleting_post_removes_its_graphic_file(self):
+        self.client.login(username="owner", password="testpass")
+
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            create_response = self.client.post(
+                reverse("create_post"),
+                {
+                    "title": "Temporary graphic",
+                    "body": "Delete this post.",
+                    "visibility": Visibility.MEMBERS,
+                    "graphic": SimpleUploadedFile("temporary.png", VALID_PNG_BYTES, content_type="image/png"),
+                },
+            )
+            post = Post.objects.get(pk=create_response.json()["post"]["id"])
+            graphic_path = post.graphic.path
+
+            response = self.client.post(reverse("delete_post", kwargs={"post_id": post.pk}))
+
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(os.path.exists(graphic_path))
 
     def test_non_owner_cannot_delete_post(self):
         other = User.objects.create_user(username="other-delete", password="testpass")
