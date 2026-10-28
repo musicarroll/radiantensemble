@@ -58,6 +58,7 @@
         <article class="content-card">
           <h3><a href="{{ artifact.file.url }}">{{ artifact.title }}</a></h3>
           <p>{{ artifact.description }}</p>
+          <a href="{% url 'artifact_detail' artifact.pk %}">Details</a>
         </article>
       {% empty %}
         <p>No visible artifacts yet.</p>

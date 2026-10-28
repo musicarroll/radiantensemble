@@ -89,6 +89,7 @@ ALLOWED_HOSTS = [
     "testserver",
     "radiantensemble.com",
     "www.radiantensemble.com",
+    "100.89.183.34",
 ]
 
 CSRF_TRUSTED_ORIGINS = [

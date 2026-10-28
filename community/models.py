@@ -1,5 +1,8 @@
+import mimetypes
+
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
@@ -127,12 +130,37 @@ class Artifact(VisibleContent):
     sha256_checksum = models.CharField(max_length=64, blank=True, default="", db_index=True)
     metadata_signature = models.CharField(max_length=64, blank=True)
     signature_algorithm = models.CharField(max_length=50, default="hmac-sha256")
+    featured_on_media = models.BooleanField(
+        default=False,
+        help_text=(
+            "Publish this picture or audio clip on the Media page for everyone, "
+            "including visitors who are not logged in, regardless of library visibility."
+        ),
+    )
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return self.title
+
+    @property
+    def media_kind(self):
+        if not self.file:
+            return ""
+        mime_type = self.mime_type
+        if not mime_type or mime_type == "application/octet-stream":
+            mime_type = mimetypes.guess_type(self.original_filename or self.file.name)[0] or ""
+        if mime_type.startswith("image/"):
+            return "image"
+        if mime_type.startswith("audio/") or mime_type == "application/ogg":
+            return "audio"
+        return ""
+
+    def clean(self):
+        super().clean()
+        if self.featured_on_media and not self.media_kind:
+            raise ValidationError({"featured_on_media": "Only pictures and audio clips can be featured on Media."})
 
     def duplicate_artifacts(self):
         if not self.sha256_checksum:

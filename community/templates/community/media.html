@@ -1,0 +1,51 @@
+{% extends "community/base.html" %}
+
+{% block title %}Media | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="media-page">
+    <div class="page-heading">
+      <p class="eyebrow">Radiant Ensemble</p>
+      <h1>Media</h1>
+      <p>Pictures and sounds from our ensemble.</p>
+    </div>
+
+    <section class="media-section" aria-labelledby="pictures-heading">
+      <h2 id="pictures-heading">Pictures</h2>
+      <div class="media-gallery">
+        {% for picture in pictures %}
+          <figure class="media-card">
+            <a href="{{ picture.file.url }}" aria-label="View {{ picture.title }}">
+              <img src="{{ picture.file.url }}" alt="{{ picture.title }}" loading="lazy">
+            </a>
+            <figcaption>
+              <h3>{{ picture.title }}</h3>
+              {% if picture.description %}<p>{{ picture.description|linebreaksbr }}</p>{% endif %}
+            </figcaption>
+          </figure>
+        {% empty %}
+          <p class="meta">Pictures will be shared here soon.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="media-section" aria-labelledby="audio-heading">
+      <h2 id="audio-heading">Audio Clips</h2>
+      <div class="media-audio-list">
+        {% for clip in audio_clips %}
+          <article class="media-card media-audio-card">
+            <h3><a href="{{ clip.file.url }}">{{ clip.title }}</a></h3>
+            {% if clip.description %}<p>{{ clip.description|linebreaksbr }}</p>{% endif %}
+            <audio controls preload="none" aria-label="{{ clip.title }}">
+              <source src="{{ clip.file.url }}">
+              <a href="{{ clip.file.url }}">Listen to {{ clip.title }}</a>
+            </audio>
+            <p><a href="{{ clip.file.url }}">Open audio clip</a></p>
+          </article>
+        {% empty %}
+          <p class="meta">Audio clips will be shared here soon.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </section>
+{% endblock %}

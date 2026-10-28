@@ -1,0 +1,51 @@
+{% extends "community/base.html" %}
+
+{% block title %}{{ artifact.title }} | Radiant Ensemble{% endblock %}
+
+{% block content %}
+  <section class="artifact-detail-page">
+    <a href="{% url 'artifacts' %}">Back to Artifacts</a>
+    <article class="artifact-results artifact-detail">
+      <p class="eyebrow">Artifact details</p>
+      <h1>{{ artifact.title }}</h1>
+      <p class="meta">{{ artifact.get_artifact_type_display }} · {{ artifact.get_visibility_display }} · Uploaded by {{ artifact.owner.get_username }}</p>
+      {% if artifact.description %}<p>{{ artifact.description|linebreaksbr }}</p>{% endif %}
+
+      {% if artifact.media_kind == "image" %}
+        <a href="{{ artifact.file.url }}"><img class="artifact-preview" src="{{ artifact.file.url }}" alt="{{ artifact.title }}"></a>
+      {% elif artifact.media_kind == "audio" %}
+        <audio controls preload="none" aria-label="{{ artifact.title }}">
+          <source src="{{ artifact.file.url }}">
+          <a href="{{ artifact.file.url }}">Listen to {{ artifact.title }}</a>
+        </audio>
+      {% endif %}
+      {% if artifact.file %}<p><a class="secondary-button" href="{{ artifact.file.url }}">Open File</a></p>{% endif %}
+
+      <dl>
+        <dt>Original filename</dt>
+        <dd>{{ artifact.original_filename|default:artifact.file.name }}</dd>
+        <dt>File size</dt>
+        <dd>{{ artifact.file_size|filesizeformat }}</dd>
+        <dt>Uploaded</dt>
+        <dd>{{ artifact.created_at }}</dd>
+        {% if artifact.tags %}<dt>Tags</dt><dd>{{ artifact.tags }}</dd>{% endif %}
+      </dl>
+
+      {% if media_form %}
+        <form method="post" class="media-feature-form">
+          {% csrf_token %}
+          {{ media_form.non_field_errors }}
+          {{ media_form.featured_on_media.errors }}
+          <label class="checkbox-row" for="{{ media_form.featured_on_media.id_for_label }}">
+            {{ media_form.featured_on_media }}
+            {{ media_form.featured_on_media.label }}
+          </label>
+          <p class="meta" id="id_featured_on_media_helptext">{{ media_form.featured_on_media.help_text }}</p>
+          {% if not artifact.media_kind %}<p class="meta">Only pictures and audio clips can be featured.</p>{% endif %}
+          <button class="primary-button" type="submit">Save Media Selection</button>
+          <a class="secondary-button" href="{% url 'media' %}">View Media</a>
+        </form>
+      {% endif %}
+    </article>
+  </section>
+{% endblock %}

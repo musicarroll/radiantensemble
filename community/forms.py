@@ -34,6 +34,13 @@ class RadiantPasswordResetForm(PasswordResetForm):
         return (user for user in active_users if user.has_usable_password())
 
 
+class ArtifactMediaForm(forms.ModelForm):
+    class Meta:
+        model = Artifact
+        fields = ["featured_on_media"]
+        labels = {"featured_on_media": "Feature on Media"}
+
+
 class ContactForm(forms.ModelForm):
     class Meta:
         model = ContactMessage

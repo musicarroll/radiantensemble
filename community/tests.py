@@ -341,6 +341,205 @@ class PublicPageTests(TestCase):
         self.assertEqual(ContactMessage.objects.count(), 0)
 
 
+class MediaPageTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.owner = User.objects.create_user(username="media-owner", password="testpass")
+        cls.member = User.objects.create_user(username="media-member", password="testpass")
+        cls.staff = User.objects.create_user(username="media-staff", password="testpass", is_staff=True)
+        cls.picture = Artifact.objects.create(
+            owner=cls.owner,
+            title="Ensemble on stage",
+            description="Our concert together.",
+            file="artifacts/concert.jpg",
+            mime_type="image/jpeg",
+            artifact_type=Artifact.ArtifactType.IMAGE,
+            visibility=Visibility.PRIVATE,
+            featured_on_media=True,
+        )
+        cls.audio = Artifact.objects.create(
+            owner=cls.owner,
+            title="Concert excerpt",
+            file="artifacts/excerpt.mp3",
+            mime_type="audio/mpeg",
+            artifact_type=Artifact.ArtifactType.AUDIO,
+            visibility=Visibility.MEMBERS,
+            featured_on_media=True,
+        )
+        cls.unfeatured = Artifact.objects.create(
+            owner=cls.owner,
+            title="Unselected public photo",
+            file="artifacts/not-selected.jpg",
+            mime_type="image/jpeg",
+            visibility=Visibility.PUBLIC,
+        )
+
+    def detail_url(self, artifact=None):
+        return reverse("artifact_detail", args=[(artifact or self.picture).pk])
+
+    def test_public_and_member_media_content_is_identical(self):
+        anonymous = self.client.get(reverse("media"))
+        self.assertEqual(anonymous.status_code, 200)
+        self.assertContains(anonymous, self.picture.file.url)
+        self.assertContains(anonymous, self.audio.file.url)
+        self.assertContains(anonymous, self.picture.description)
+        self.assertContains(anonymous, "<audio controls")
+        self.assertNotContains(anonymous, self.unfeatured.title)
+        self.assertNotContains(anonymous, self.owner.username)
+        self.assertNotContains(anonymous, "Feature on Media")
+
+        self.client.force_login(self.member)
+        member = self.client.get(reverse("media"))
+        self.client.force_login(self.staff)
+        staff = self.client.get(reverse("media"))
+        anonymous_main = re.search(r"<main>(.*?)</main>", anonymous.content.decode(), re.S).group(1)
+        for response in [member, staff]:
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(re.search(r"<main>(.*?)</main>", response.content.decode(), re.S).group(1), anonymous_main)
+
+    def test_media_link_is_in_public_and_member_navigation(self):
+        self.assertContains(self.client.get(reverse("about")), f'href="{reverse("media")}">Media</a>')
+        self.client.force_login(self.member)
+        self.assertContains(self.client.get(reverse("home")), f'href="{reverse("media")}">Media</a>')
+
+    def test_empty_media_page_loads(self):
+        Artifact.objects.update(featured_on_media=False)
+        response = self.client.get(reverse("media"))
+        self.assertContains(response, "Pictures will be shared here soon.")
+        self.assertContains(response, "Audio clips will be shared here soon.")
+
+    def test_staff_can_feature_and_unfeature_another_users_upload(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(self.detail_url(self.unfeatured))
+        self.assertContains(response, 'name="featured_on_media"')
+        self.assertContains(response, "regardless of library visibility")
+
+        response = self.client.post(
+            self.detail_url(self.unfeatured),
+            {"featured_on_media": "on", "title": "Forged title", "visibility": Visibility.PRIVATE},
+        )
+        self.assertRedirects(response, self.detail_url(self.unfeatured))
+        self.unfeatured.refresh_from_db()
+        self.assertTrue(self.unfeatured.featured_on_media)
+        self.assertEqual(self.unfeatured.title, "Unselected public photo")
+        self.assertEqual(self.unfeatured.visibility, Visibility.PUBLIC)
+        self.client.logout()
+        self.assertContains(self.client.get(reverse("media")), self.unfeatured.title)
+
+        self.client.force_login(self.staff)
+        self.assertRedirects(self.client.post(self.detail_url(self.unfeatured), {}), self.detail_url(self.unfeatured))
+        self.unfeatured.refresh_from_db()
+        self.assertFalse(self.unfeatured.featured_on_media)
+        self.assertNotContains(self.client.get(reverse("media")), self.unfeatured.title)
+
+    def test_staff_can_select_audio_and_artwork(self):
+        artwork = Artifact.objects.create(
+            owner=self.owner,
+            title="Concert artwork",
+            artifact_type=Artifact.ArtifactType.ARTWORK,
+            file="artifacts/poster.png",
+        )
+        self.client.force_login(self.staff)
+        for artifact in [self.audio, artwork]:
+            with self.subTest(artifact=artifact.title):
+                self.assertRedirects(
+                    self.client.post(self.detail_url(artifact), {"featured_on_media": "on"}), self.detail_url(artifact)
+                )
+                self.assertContains(self.client.get(reverse("media")), artifact.file.url)
+
+    def test_owner_and_other_members_cannot_change_media_selection(self):
+        for user in [self.owner, self.member]:
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                self.assertNotContains(self.client.get(self.detail_url(self.audio)), 'name="featured_on_media"')
+                self.assertEqual(self.client.post(self.detail_url(self.audio), {}).status_code, 403)
+                self.audio.refresh_from_db()
+                self.assertTrue(self.audio.featured_on_media)
+
+    def test_anonymous_cannot_access_selection_or_artifact_details(self):
+        self.assertEqual(self.client.get(self.detail_url()).status_code, 302)
+        self.assertEqual(self.client.post(self.detail_url(), {}).status_code, 302)
+        self.picture.refresh_from_db()
+        self.assertTrue(self.picture.featured_on_media)
+
+    def test_unrelated_member_cannot_view_private_artifact_details(self):
+        self.client.force_login(self.member)
+        self.assertEqual(self.client.get(self.detail_url()).status_code, 404)
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(self.detail_url()).status_code, 200)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(self.detail_url()).status_code, 200)
+
+    def test_selection_requires_csrf_token(self):
+        from django.test import Client
+
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.staff)
+        self.assertEqual(client.post(self.detail_url(), {}).status_code, 403)
+        self.picture.refresh_from_db()
+        self.assertTrue(self.picture.featured_on_media)
+
+    def test_unsupported_file_cannot_be_featured_even_with_image_label(self):
+        score = Artifact.objects.create(
+            owner=self.owner,
+            title="Concert score",
+            file="artifacts/score.pdf",
+            mime_type="application/pdf",
+            artifact_type=Artifact.ArtifactType.IMAGE,
+        )
+        self.client.force_login(self.staff)
+        response = self.client.post(self.detail_url(score), {"featured_on_media": "on"})
+        self.assertContains(response, "Only pictures and audio clips can be featured on Media.")
+        score.refresh_from_db()
+        self.assertFalse(score.featured_on_media)
+
+    def test_admin_artifact_form_validates_media_selection(self):
+        from django.contrib import admin
+
+        artifact_admin = admin.site._registry[Artifact]
+        request = self.client.get(reverse("media")).wsgi_request
+        request.user = self.staff
+        form_class = artifact_admin.get_form(request, self.unfeatured)
+        form = form_class(instance=self.unfeatured)
+        self.assertIn("featured_on_media", form.fields)
+        self.assertIn("featured_on_media", artifact_admin.list_filter)
+        invalid_form = form_class(data={
+            "owner": self.owner.pk,
+            "title": "PDF",
+            "artifact_type": Artifact.ArtifactType.PDF,
+            "visibility": Visibility.MEMBERS,
+            "file": "artifacts/score.pdf",
+            "mime_type": "application/pdf",
+            "featured_on_media": "on",
+            "signature_algorithm": "hmac-sha256",
+            "file_size": 0,
+        }, instance=self.unfeatured)
+        self.assertFalse(invalid_form.is_valid())
+        self.assertIn("featured_on_media", invalid_form.errors)
+
+    def test_existing_upload_and_update_api_cannot_set_featured_flag(self):
+        self.client.force_login(self.owner)
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(reverse("upload_artifact"), {
+                "title": "Unreviewed photo",
+                "file": SimpleUploadedFile("photo.png", VALID_PNG_BYTES, content_type="image/png"),
+                "featured_on_media": "true",
+            })
+            self.assertEqual(response.status_code, 201)
+            uploaded = Artifact.objects.get(pk=response.json()["artifact"]["id"])
+            self.assertFalse(uploaded.featured_on_media)
+            response = self.client.post(reverse("update_artifact", args=[uploaded.pk]), {"featured_on_media": "true"})
+            self.assertEqual(response.status_code, 200)
+            uploaded.refresh_from_db()
+            self.assertFalse(uploaded.featured_on_media)
+
+    def test_artifact_lists_link_to_details(self):
+        self.client.force_login(self.staff)
+        for page in ["artifacts", "artifact_search"]:
+            with self.subTest(page=page):
+                self.assertContains(self.client.get(reverse(page)), f'href="{self.detail_url()}">Details</a>')
+
+
 class MemberProfileTests(TestCase):
     def setUp(self):
         self.member = User.objects.create_user(username="profile-member", password="testpass")

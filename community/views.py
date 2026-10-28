@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .forms import (
+    ArtifactMediaForm,
     ArtifactSearchForm,
     BugReportForm,
     ContactForm,
@@ -58,6 +59,19 @@ def home(request):
 
 def about(request):
     return render(request, "community/about.html")
+
+
+def media(request):
+    # Featuring is an explicit publication decision, independent of library visibility.
+    featured = Artifact.objects.filter(featured_on_media=True)
+    pictures = []
+    audio_clips = []
+    for artifact in featured:
+        if artifact.media_kind == "image":
+            pictures.append(artifact)
+        elif artifact.media_kind == "audio":
+            audio_clips.append(artifact)
+    return render(request, "community/media.html", {"pictures": pictures, "audio_clips": audio_clips})
 
 
 def signup(request):
@@ -401,6 +415,25 @@ def artifacts(request):
     paginator = Paginator(visible_artifacts, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
     return render(request, "community/artifacts.html", {"page_obj": page_obj})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def artifact_detail(request, artifact_id):
+    artifact = get_object_or_404(Artifact.objects.select_related("owner"), pk=artifact_id)
+    can_feature = request.user.is_staff or request.user.is_superuser
+    if not can_feature and not artifact.is_visible_to(request.user):
+        raise Http404
+    if request.method == "POST" and not can_feature:
+        return JsonResponse({"error": "Only administrators can feature media."}, status=403)
+
+    form = ArtifactMediaForm(request.POST if request.method == "POST" else None, instance=artifact) if can_feature else None
+    if request.method == "POST" and form.is_valid():
+        # Limit this action to publication; do not change library metadata or send upload notifications.
+        artifact.featured_on_media = form.cleaned_data["featured_on_media"]
+        artifact.save(update_fields=["featured_on_media", "updated_at"])
+        return redirect("artifact_detail", artifact_id=artifact.pk)
+    return render(request, "community/artifact_detail.html", {"artifact": artifact, "media_form": form})
 
 
 @login_required

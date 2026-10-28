@@ -26,6 +26,7 @@ For Turnstile-backed contact form testing, create `.env/config.py` using `.env.e
 - `Post` and `Artifact` default to members-only visibility, with public, group-scoped, and private options. Posts can include an optional JPEG, PNG, GIF, or WebP graphic up to 10 MB.
 - `MessageThread` and `Message` provide members-only direct and group messaging foundations.
 - Uploaded files are stored under `media/` in development and tracked by the database.
+- The Media page at `/gallery/` shows the same selected pictures and audio clips to visitors and members. Administrators select items through Artifacts → Details → **Feature on Media** (then **Save Media Selection**), or the artifact's Django admin form. Featuring explicitly publishes the file, title, and description regardless of library visibility. Uncheck and save to remove an item; uploads are unselected by default. The page uses `/gallery/` because `/media/` is reserved for uploaded files.
 - React is built by Vite into `frontend/dist/assets/home.js`, which Django serves through static files.
 
 ## Artifact Metadata Harvesting

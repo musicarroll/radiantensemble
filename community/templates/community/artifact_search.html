@@ -40,6 +40,7 @@
               {% if artifact.original_filename %}{{ artifact.original_filename }}{% else %}{{ artifact.file.name }}{% endif %}
               {% if artifact.file_size %} · {{ artifact.file_size }} bytes{% endif %}
             </p>
+            <a class="secondary-button" href="{% url 'artifact_detail' artifact.pk %}">Details</a>
           </article>
         {% empty %}
           <p class="meta">

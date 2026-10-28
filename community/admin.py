@@ -43,6 +43,7 @@ class ArtifactAdmin(admin.ModelAdmin):
         "artifact_type",
         "owner",
         "visibility",
+        "featured_on_media",
         "original_filename",
         "stored_filename",
         "mime_type",
@@ -51,7 +52,7 @@ class ArtifactAdmin(admin.ModelAdmin):
         "signature_algorithm",
         "created_at",
     )
-    list_filter = ("artifact_type", "visibility", "mime_type", "signature_algorithm", "created_at")
+    list_filter = ("artifact_type", "visibility", "featured_on_media", "mime_type", "signature_algorithm", "created_at")
     search_fields = (
         "title",
         "description",

@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("", views.home, name="home"),
     path("about/", views.about, name="about"),
+    path("gallery/", views.media, name="media"),
     path("signup/", views.signup, name="signup"),
     path("contact/", views.contact, name="contact"),
     path("calendar/", views.calendar_page, name="calendar"),
@@ -25,6 +26,7 @@ urlpatterns = [
     path("members/<slug:slug>/", views.member_page, name="member_page"),
     path("artifacts/", views.artifacts, name="artifacts"),
     path("artifacts/search/", views.artifact_search, name="artifact_search"),
+    path("artifacts/<int:artifact_id>/", views.artifact_detail, name="artifact_detail"),
     path("messages/<int:thread_id>/", views.thread_page, name="thread_page"),
     path("api/me/", views.api_me, name="api_me"),
     path("api/home-feed/", views.api_home_feed, name="api_home_feed"),

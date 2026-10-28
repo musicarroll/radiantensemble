@@ -1,5 +1,14 @@
 # Session Notes
 
+## 2026-10-28 Shared Media Page
+
+- Added public Media page at `/gallery/` with the same featured picture gallery and audio clips for visitors, members, and administrators, plus links in both navigation menus. `/media/` remains the uploaded-file URL prefix so production file hosting does not shadow the new page.
+- Added artifact details at `/artifacts/<id>/`, linked from the library, search results, and member artifact lists, with image/audio previews and an admin-only **Feature on Media** checkbox. Save the checkbox to publish or remove an item. The Django admin artifact form also exposes the field and a list filter.
+- Featuring is an explicit publication decision independent of library visibility: the selected file, title, and description appear publicly. The form explains this; existing uploads remain unselected by default. Normal library/detail access continues to follow artifact permissions.
+- Selection accepts image and audio MIME types, with filename fallback for legacy uploads without MIME metadata; other files cannot be selected. Existing upload/edit APIs cannot set the publication flag.
+- Deployment requires `python manage.py migrate` for migration `0011_artifact_featured_on_media` and `python manage.py collectstatic` for the updated stylesheet.
+- Applied the migration locally. Verified with all 116 community tests, a final rerun of the 13 Media tests after choosing `/gallery/`, Django system checks, migration drift checks, and `git diff --check`.
+
 ## 2026-07-21 Artifact Replacement And Metadata Editing
 
 - Added `POST /api/artifacts/<artifact_id>/` so an artifact owner or staff user can replace the uploaded file without creating a duplicate artifact record.
@@ -229,3 +238,11 @@
 - Member profile post lists display attached graphics as well.
 - Added API coverage for valid uploads, invalid-file rejection, replacement/removal, and storage cleanup on deletion.
 - Verified with `npm run build`, `python manage.py check`, `python manage.py makemigrations --check`, focused graphic tests, and the full 103-test `python manage.py test community` suite.
+
+## 2026-10-08 Production Post Graphic Upload Fix
+
+- Diagnosed production `POST /api/posts/` requests with an attached graphic returning HTTP 500 while the same upload worked under the local runserver.
+- Confirmed that migration `0010_post_graphic` was already applied and the production database contained the `community_post.graphic` column.
+- Found that Pillow was listed in `requirements.txt` but had not been installed in the production virtual environment, causing Django's `ImageField` validation to fail.
+- Installed the production requirements with `venv/bin/python -m pip install -r requirements.txt`, verified the Django system checks, and restarted Apache with `webreboot`.
+- Confirmed that production post graphic uploads work after installing Pillow. Future deployments that change Python dependencies must install `requirements.txt` before restarting the application.
