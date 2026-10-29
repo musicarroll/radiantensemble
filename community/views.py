@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from calendar import Calendar, month_name
 from datetime import date, datetime, time
 from urllib import parse, request as urlrequest
@@ -14,6 +15,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from PIL import Image, ImageOps, UnidentifiedImageError
+from pillow_heif import register_heif_opener
 
 from .forms import (
     ArtifactMediaForm,
@@ -49,6 +52,9 @@ from .notifications import (
     notify_new_signup,
 )
 from .utils import calculate_sha256, detect_mime_type, sign_artifact_metadata
+
+
+register_heif_opener()
 
 
 def home(request):
@@ -537,6 +543,25 @@ def _artifact_metadata_for_upload(uploaded_file):
     return original_filename, sha256_checksum, mime_type, file_size
 
 
+def _convert_heif_upload(uploaded_file):
+    """Convert HEIC/HEIF uploads to JPEG before they are stored as artifacts."""
+    if uploaded_file.name.rsplit(".", 1)[-1].lower() not in {"heic", "heif"}:
+        return uploaded_file
+    try:
+        uploaded_file.seek(0)
+        with Image.open(uploaded_file) as source:
+            image = ImageOps.exif_transpose(source).convert("RGB")
+            converted = BytesIO()
+            image.save(converted, format="JPEG", quality=92, optimize=True)
+    except (UnidentifiedImageError, OSError, ValueError) as error:
+        raise ValueError("The uploaded HEIC/HEIF file could not be decoded.") from error
+    converted.seek(0)
+    converted.name = uploaded_file.name.rsplit(".", 1)[0] + ".jpg"
+    converted.content_type = "image/jpeg"
+    converted.size = converted.getbuffer().nbytes
+    return converted
+
+
 def _sign_artifact(artifact):
     artifact.metadata_signature = sign_artifact_metadata(
         original_filename=artifact.original_filename,
@@ -841,6 +866,11 @@ def upload_artifact(request):
     uploaded_file = request.FILES.get("file")
     if not uploaded_file:
         return JsonResponse({"error": "A file upload is required."}, status=400)
+
+    try:
+        uploaded_file = _convert_heif_upload(uploaded_file)
+    except ValueError as error:
+        return JsonResponse({"error": str(error)}, status=400)
 
     # FileField metadata harvesting order:
     # 1. capture original uploaded name

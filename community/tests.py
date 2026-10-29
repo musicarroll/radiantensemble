@@ -1537,6 +1537,44 @@ class ArtifactMetadataTests(TestCase):
         self.assertEqual(calculate_sha256(uploaded_file), hashlib.sha256(content).hexdigest())
         self.assertEqual(uploaded_file.tell(), 0)
 
+    def test_heic_upload_is_converted_to_jpeg_before_metadata_is_recorded(self):
+        from PIL import Image
+        from pillow_heif import register_heif_opener
+        from io import BytesIO
+
+        register_heif_opener()
+        heic_bytes = BytesIO()
+        Image.new("RGB", (3, 2), (40, 80, 120)).save(heic_bytes, format="HEIF")
+        self.client.login(username="artifact-owner", password="testpass")
+
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("upload_artifact"),
+                {
+                    "title": "Phone photo",
+                    "artifact_type": Artifact.ArtifactType.IMAGE,
+                    "file": SimpleUploadedFile("phone-photo.HEIC", heic_bytes.getvalue(), content_type="image/heic"),
+                },
+            )
+            self.assertEqual(response.status_code, 201, response.content)
+            artifact = Artifact.objects.get(title="Phone photo")
+            self.assertEqual(artifact.original_filename, "phone-photo.jpg")
+            self.assertEqual(artifact.mime_type, "image/jpeg")
+            self.assertTrue(artifact.file.name.endswith(".jpg"))
+            self.assertTrue(artifact.verify_file_integrity())
+            with Image.open(artifact.file.path) as saved_image:
+                self.assertEqual(saved_image.format, "JPEG")
+                self.assertEqual(saved_image.size, (3, 2))
+
+    def test_invalid_heic_upload_is_rejected(self):
+        self.client.login(username="artifact-owner", password="testpass")
+        response = self.client.post(
+            reverse("upload_artifact"),
+            {"title": "Invalid photo", "file": SimpleUploadedFile("invalid.heif", b"not an image")},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Artifact.objects.filter(title="Invalid photo").exists())
+
     def test_detect_mime_type_uses_available_detector_or_filename_fallback(self):
         uploaded_file = SimpleUploadedFile("notes.txt", b"plain text", content_type="text/plain")
 
